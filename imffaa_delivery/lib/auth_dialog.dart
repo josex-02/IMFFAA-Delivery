@@ -452,18 +452,25 @@ class _AuthDialogState extends State<AuthDialog> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                    color: const Color(0xFFF0F3F6),
-                    borderRadius: BorderRadius.circular(11)),
-                child: Row(
-                  children: [
-                    Expanded(child: _tabButton('Iniciar sesión', isLogin)),
-                    Expanded(child: _tabButton('Crear cuenta', !isLogin)),
-                  ],
-                ),
-              ),
+              child: Builder(builder: (context) {
+                final scheme = Theme.of(context).colorScheme;
+                final darkMode = scheme.brightness == Brightness.dark;
+                return Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                      color: darkMode
+                          ? const Color(0xFF171B18)
+                          : scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: scheme.outlineVariant)),
+                  child: Row(
+                    children: [
+                      Expanded(child: _tabButton('Iniciar sesión', isLogin)),
+                      Expanded(child: _tabButton('Crear cuenta', !isLogin)),
+                    ],
+                  ),
+                );
+              }),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -478,25 +485,47 @@ class _AuthDialogState extends State<AuthDialog> {
     );
   }
 
-  Widget _tabButton(String label, bool selected) => InkWell(
-        borderRadius: BorderRadius.circular(9),
-        onTap: () => setState(() {
-          isLogin = label == 'Iniciar sesión';
-          awaitingEmailCode = false;
-        }),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 5),
-          decoration: BoxDecoration(
-              color: selected ? Colors.white : Colors.transparent,
-              borderRadius: BorderRadius.circular(9)),
-          alignment: Alignment.center,
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: selected ? navy : muted)),
-        ),
-      );
+  Widget _tabButton(String label, bool selected) {
+    final scheme = Theme.of(context).colorScheme;
+    final darkMode = scheme.brightness == Brightness.dark;
+    return InkWell(
+      borderRadius: BorderRadius.circular(9),
+      onTap: () => setState(() {
+        isLogin = label == 'Iniciar sesión';
+        awaitingEmailCode = false;
+      }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 5),
+        decoration: BoxDecoration(
+            color: selected
+                ? darkMode
+                    ? const Color(0xFF28583A)
+                    : scheme.surface
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                        color: scheme.shadow.withValues(alpha: .12),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2))
+                  ]
+                : null),
+        alignment: Alignment.center,
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: selected
+                    ? darkMode
+                        ? scheme.onPrimaryContainer
+                        : scheme.primary
+                    : scheme.onSurfaceVariant)),
+      ),
+    );
+  }
 
   Widget _loginForm() {
     if (recoveringPassword) return _passwordRecoveryForm();

@@ -604,13 +604,14 @@ class _CatalogPageState extends State<CatalogPage> {
           builder: (_) => const AuthDialog());
       if (!mounted || result == null) return;
       await acceptSession(result);
-      if (result.role.toLowerCase() == 'admin') return;
+      if (!mounted || result.role.toLowerCase() == 'admin') return;
     }
 
     final addressController = TextEditingController();
     final phoneController = TextEditingController();
     String paymentMethod = 'Efectivo contra entrega';
     String? validationMessage;
+    final colorScheme = Theme.of(context).colorScheme;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -686,53 +687,63 @@ class _CatalogPageState extends State<CatalogPage> {
                               'Efectivo contra entrega',
                               'Transferencia bancaria',
                               'Tarjeta (demostración)'
-                            ].map((method) => Padding(
+                            ].map((method) {
+                              final isSelected = paymentMethod == method;
+                              final isDark =
+                                  colorScheme.brightness == Brightness.dark;
+                              final optionBackground = isDark
+                                  ? isSelected
+                                      ? const Color(0xFF28583A)
+                                      : const Color(0xFF303A33)
+                                  : isSelected
+                                      ? colorScheme.primaryContainer
+                                      : colorScheme.surfaceContainerHighest;
+                              final optionForeground = colorScheme.onSurface;
+                              return Padding(
                                 padding: const EdgeInsets.only(bottom: 7),
                                 child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: () => setDialogState(
-                                        () => paymentMethod = method),
-                                    child: AnimatedContainer(
-                                        duration:
-                                            const Duration(milliseconds: 220),
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                            color: paymentMethod == method
-                                                ? const Color(0xFFEAF0F4)
-                                                : Theme.of(dialogContext)
-                                                    .colorScheme
-                                                    .surface,
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                            border: Border.all(
-                                                color: paymentMethod == method
-                                                    ? const Color(0xFF35495C)
-                                                    : Theme.of(dialogContext)
-                                                        .colorScheme
-                                                        .outlineVariant)),
-                                        child: Row(children: [
-                                          Icon(
-                                              method.startsWith('Efectivo')
-                                                  ? Icons.payments_outlined
-                                                  : method.startsWith(
-                                                          'Transferencia')
-                                                      ? Icons
-                                                          .account_balance_outlined
-                                                      : Icons
-                                                          .credit_card_outlined,
-                                              size: 19),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                              child: Text(method,
-                                                  style: const TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w700))),
-                                          if (paymentMethod == method)
-                                            const Icon(
-                                                Icons.check_circle_rounded,
-                                                size: 18)
-                                        ]))))),
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () => setDialogState(
+                                      () => paymentMethod = method),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 220),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                        color: optionBackground,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: isSelected
+                                                ? colorScheme.primary
+                                                : colorScheme.outlineVariant)),
+                                    child: Row(children: [
+                                      Icon(
+                                          method.startsWith('Efectivo')
+                                              ? Icons.payments_outlined
+                                              : method.startsWith(
+                                                      'Transferencia')
+                                                  ? Icons
+                                                      .account_balance_outlined
+                                                  : Icons.credit_card_outlined,
+                                          size: 19,
+                                          color: isSelected
+                                              ? colorScheme.primary
+                                              : colorScheme.onSurfaceVariant),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                          child: Text(method,
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: optionForeground))),
+                                      if (isSelected)
+                                        Icon(Icons.check_circle_rounded,
+                                            size: 18,
+                                            color: colorScheme.primary)
+                                    ]),
+                                  ),
+                                ),
+                              );
+                            }),
                             if (paymentMethod == 'Tarjeta (demostración)')
                               Padding(
                                   padding:
@@ -831,7 +842,6 @@ class _CatalogPageState extends State<CatalogPage> {
       }
       return;
     }
-    final orderId = now.microsecondsSinceEpoch.toString().substring(7);
     final lines = catalogProducts.value
         .where((p) => (cart[p.id] ?? 0) > 0)
         .map((p) => DeliveryOrderLine(
@@ -857,75 +867,80 @@ class _CatalogPageState extends State<CatalogPage> {
       }
       return;
     }
-    final subtotal = lines.fold<int>(0, (sum, line) => sum + line.total);
-    var order = DeliveryOrder(
-      id: orderId,
-      customer: currentUser?.name ?? 'Cliente',
-      email: currentUser?.email ?? '',
-      phone: phone,
-      address: address,
-      paymentMethod: paymentMethod,
-      lines: lines,
-      subtotal: subtotal,
-      shipping: 80,
-      total: subtotal + 80,
-      createdAt: now,
-      status: DeliveryOrderStatus.preparing,
-    );
+    final authUser = supabase.auth.currentUser;
+    final customerEmail = currentUser?.email ?? authUser?.email ?? '';
+    final customerName = currentUser?.name ??
+        (authUser?.userMetadata?['full_name'] ??
+                authUser?.email?.split('@').first ??
+                'Cliente')
+            .toString();
+    DeliveryOrder order;
     try {
-      final savedOrder = await supabase
-          .from('orders')
-          .insert({
-            'user_id': userId,
-            'customer_name': order.customer,
-            'customer_email': order.email,
-            'phone': order.phone,
-            'delivery_address': order.address,
-            'payment_method': order.paymentMethod,
-            'status': 'preparing',
-            'subtotal': order.subtotal,
-            'shipping': order.shipping,
-            'total': order.total,
-          })
-          .select('id')
-          .single();
-      final dbOrderId = savedOrder['id'].toString();
-      await supabase.from('order_items').insert(lines
-          .map((line) => {
-                'order_id': dbOrderId,
-                'product_id': line.productId,
-                'product_name': line.name,
-                'unit_price': line.price,
-                'quantity': line.quantity,
-                'color': line.color,
-                'size': line.size,
-                'line_total': line.total,
-              })
-          .toList());
+      final response = await supabase.rpc('place_order', params: {
+        'p_customer_name': customerName,
+        'p_customer_email': customerEmail,
+        'p_phone': phone,
+        'p_delivery_address': address,
+        'p_payment_method': paymentMethod,
+        'p_items': lines
+            .map((line) => {
+                  'product_id': line.productId,
+                  'quantity': line.quantity,
+                  'color': line.color,
+                  'size': line.size,
+                })
+            .toList(),
+      });
+      if (response is! Map) {
+        throw const FormatException('Respuesta inválida al registrar pedido.');
+      }
+      final savedOrder = Map<String, dynamic>.from(response);
+      final savedLines = savedOrder['lines'];
+      if (savedLines is! List) {
+        throw const FormatException(
+            'No se recibieron los productos registrados del pedido.');
+      }
+      final updatedStock = Map<int, int>.from(inventoryCounts.value);
+      for (final item in savedLines) {
+        if (item is! Map) {
+          throw const FormatException(
+              'La respuesta contiene un producto inválido.');
+        }
+        final savedLine = Map<String, dynamic>.from(item);
+        updatedStock[(savedLine['product_id'] as num).toInt()] =
+            (savedLine['stock_remaining'] as num).toInt();
+      }
+      inventoryCounts.value = updatedStock;
+      final orderLines = savedLines.map((item) {
+        if (item is! Map) {
+          throw const FormatException(
+              'La respuesta contiene un producto inválido.');
+        }
+        final savedLine = Map<String, dynamic>.from(item);
+        return DeliveryOrderLine(
+          productId: (savedLine['product_id'] as num).toInt(),
+          name: savedLine['product_name'].toString(),
+          price: (savedLine['unit_price'] as num).toInt(),
+          quantity: (savedLine['quantity'] as num).toInt(),
+          color: (savedLine['color'] ?? '').toString(),
+          size: (savedLine['size'] ?? '').toString(),
+        );
+      }).toList();
       order = DeliveryOrder(
-          id: dbOrderId,
-          customer: order.customer,
-          email: order.email,
-          phone: order.phone,
-          address: order.address,
-          paymentMethod: order.paymentMethod,
-          lines: order.lines,
-          subtotal: order.subtotal,
-          shipping: order.shipping,
-          total: order.total,
-          createdAt: order.createdAt,
-          status: order.status);
-      final bytes = await createReceiptPdf(order);
-      final receiptPath = '$userId/$dbOrderId.pdf';
-      await supabase.storage.from('order-receipts').uploadBinary(
-          receiptPath, bytes,
-          fileOptions:
-              const FileOptions(contentType: 'application/pdf', upsert: true));
-      await supabase
-          .from('orders')
-          .update({'receipt_path': receiptPath}).eq('id', dbOrderId);
-      order = order.copyWith(receiptBytes: bytes);
-      deliveryOrders.value = [order, ...deliveryOrders.value];
+        id: savedOrder['id'].toString(),
+        customer: customerName,
+        email: customerEmail,
+        phone: phone,
+        address: address,
+        paymentMethod: paymentMethod,
+        lines: orderLines,
+        subtotal: (savedOrder['subtotal'] as num).toInt(),
+        shipping: (savedOrder['shipping'] as num).toInt(),
+        total: (savedOrder['total'] as num).toInt(),
+        createdAt:
+            DateTime.tryParse(savedOrder['created_at'].toString()) ?? now,
+        status: DeliveryOrderStatus.preparing,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -933,27 +948,35 @@ class _CatalogPageState extends State<CatalogPage> {
       }
       return;
     }
-    final updatedStock = Map<int, int>.from(inventoryCounts.value);
-    for (final line in lines) {
-      updatedStock[line.productId] =
-          ((updatedStock[line.productId] ?? 0) - line.quantity)
-              .clamp(0, 999999)
-              .toInt();
+
+    if (mounted) {
+      setState(() {
+        cart.clear();
+        cartColors.clear();
+        cartSizes.clear();
+      });
     }
-    inventoryCounts.value = updatedStock;
-    for (final line in lines) {
-      try {
-        await supabase.from('products').update(
-            {'stock': updatedStock[line.productId]}).eq('id', line.productId);
-      } catch (_) {
-        /* El stock del servidor se valida también al consultar el catálogo. */
+
+    Uint8List? receiptBytes;
+    try {
+      receiptBytes = await createReceiptPdf(order);
+      final receiptPath = '${userId}/${order.id}.pdf';
+      await supabase.storage.from('order-receipts').uploadBinary(
+          receiptPath, receiptBytes,
+          fileOptions:
+              const FileOptions(contentType: 'application/pdf', upsert: true));
+      await supabase
+          .from('orders')
+          .update({'receipt_path': receiptPath}).eq('id', order.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Pedido registrado, pero no se pudo guardar el comprobante: $e')));
       }
     }
-    setState(() {
-      cart.clear();
-      cartColors.clear();
-      cartSizes.clear();
-    });
+    order = order.copyWith(receiptBytes: receiptBytes);
+    deliveryOrders.value = [order, ...deliveryOrders.value];
     if (!mounted) return;
     await showDialog<void>(
         context: context,
@@ -967,7 +990,7 @@ class _CatalogPageState extends State<CatalogPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Pedido #${order.id}',
+                    Text('Pedido #${shortOrderId(order.id)}',
                         style: const TextStyle(fontWeight: FontWeight.w900)),
                     const SizedBox(height: 5),
                     Text(
@@ -999,10 +1022,17 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 
   Future<void> _openReceipt(DeliveryOrder order) async {
-    final bytes = order.receiptBytes;
-    if (bytes == null) return;
-    await Printing.layoutPdf(
-        name: 'delivery_pedido_${order.id}.pdf', onLayout: (_) async => bytes);
+    try {
+      final bytes = await createReceiptPdf(order);
+      await Printing.layoutPdf(
+          name: 'pedido_${shortOrderId(order.id)}.pdf',
+          onLayout: (_) async => bytes);
+    } catch (e) {
+      if (mounted) {
+        showAppToast(context, 'No se pudo abrir el comprobante: $e',
+            isError: true);
+      }
+    }
   }
 
   Future<void> _refreshMyOrders() async {
@@ -1161,7 +1191,7 @@ class _CatalogPageState extends State<CatalogPage> {
                                               children: [
                                                 Expanded(
                                                   child: Text(
-                                                    'Pedido #${order.id}',
+                                                    'Pedido #${shortOrderId(order.id)}',
                                                     style: const TextStyle(
                                                         fontWeight:
                                                             FontWeight.w900),
@@ -1369,6 +1399,8 @@ class _CatalogPageState extends State<CatalogPage> {
               });
             }
             return CustomScrollView(
+              physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics()),
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
@@ -1432,13 +1464,18 @@ class _CatalogPageState extends State<CatalogPage> {
                                 backgroundColor:
                                     Theme.of(context).colorScheme.surface,
                                 labelStyle: TextStyle(
-                                  color:
-                                      category == value ? Colors.white : slate,
+                                  color: category == value
+                                      ? Colors.white
+                                      : Theme.of(context).colorScheme.onSurface,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
                                 side: BorderSide(
-                                    color: category == value ? navy : line),
+                                    color: category == value
+                                        ? navy
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .outlineVariant),
                                 shape: const StadiumBorder(),
                                 showCheckmark: false,
                                 padding:
@@ -1489,7 +1526,9 @@ class _CatalogPageState extends State<CatalogPage> {
                                           border: Border.all(
                                               color: selected
                                                   ? const Color(0xFFB5C79A)
-                                                  : line),
+                                                  : Theme.of(context)
+                                                      .colorScheme
+                                                      .outlineVariant),
                                         ),
                                         child: Text(value,
                                             style: TextStyle(

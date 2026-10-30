@@ -151,26 +151,28 @@ class _ProductCardState extends State<ProductCard> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: AnimatedScale(
-        scale: _hovered ? 1.012 : 1,
-        duration: const Duration(milliseconds: 520),
+        scale: _hovered ? 1.025 : 1,
+        duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 520),
+          duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
+          transform: Matrix4.translationValues(0, _hovered ? -3 : 0, 0),
+          transformAlignment: Alignment.center,
           decoration: BoxDecoration(
             color: scheme.surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
                 color: _hovered
-                    ? scheme.primary.withValues(alpha: .42)
+                    ? scheme.primary.withValues(alpha: .7)
                     : scheme.outlineVariant.withValues(alpha: .72),
-                width: _hovered ? 1.25 : 1),
+                width: _hovered ? 1.5 : 1),
             boxShadow: [
               BoxShadow(
                   color:
-                      scheme.primary.withValues(alpha: _hovered ? .10 : .025),
-                  blurRadius: _hovered ? 30 : 18,
-                  offset: Offset(0, _hovered ? 12 : 5))
+                      scheme.primary.withValues(alpha: _hovered ? .16 : .025),
+                  blurRadius: _hovered ? 26 : 18,
+                  offset: Offset(0, _hovered ? 10 : 5))
             ],
           ),
           clipBehavior: Clip.antiAlias,
@@ -285,7 +287,7 @@ class _ProductCardState extends State<ProductCard> {
                             Icon(Icons.inventory_2_outlined,
                                 size: 11,
                                 color: stockFor(product) > 0
-                                    ? slate
+                                    ? scheme.onSurfaceVariant
                                     : Colors.redAccent),
                             const SizedBox(width: 4),
                             Expanded(
@@ -296,7 +298,7 @@ class _ProductCardState extends State<ProductCard> {
                                     style: TextStyle(
                                         fontSize: 9,
                                         color: stockFor(product) > 0
-                                            ? slate
+                                            ? scheme.onSurfaceVariant
                                             : Colors.redAccent,
                                         fontWeight: FontWeight.w700)))
                           ]),

@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../models/delivery_order.dart';
@@ -7,9 +8,14 @@ import '../models/delivery_order.dart';
 /// No necesita descargar un archivo privado de Storage para que el admin lo vea.
 Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
   final document = pw.Document();
+  const brandGreen = PdfColor.fromInt(0xFF238841);
+  final logoBytes =
+      (await rootBundle.load('assets/logo_icon-512.png')).buffer.asUint8List();
+  final logo = pw.MemoryImage(logoBytes);
   final local = order.createdAt.toLocal();
   final date =
       '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year}  ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  final orderReference = shortOrderId(order.id);
   document.addPage(pw.Page(
     pageFormat: PdfPageFormat.a4,
     margin: const pw.EdgeInsets.all(34),
@@ -17,22 +23,52 @@ Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
         pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
       pw.Container(
           width: double.infinity,
-          padding: const pw.EdgeInsets.all(20),
-          decoration:
-              const pw.BoxDecoration(color: const PdfColor.fromInt(0xFF25313D)),
-          child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
+          padding: const pw.EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: const pw.BoxDecoration(color: brandGreen),
+          child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.Text('IMFFAA Delivery',
-                    style: const pw.TextStyle(
+                pw.Container(
+                    width: 58,
+                    height: 58,
+                    padding: const pw.EdgeInsets.all(4),
+                    decoration: pw.BoxDecoration(
                         color: PdfColors.white,
-                        fontSize: 26,
-                        fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 5),
-                pw.Text('COMPROBANTE DE PEDIDO',
-                    style: const pw.TextStyle(
-                        color: const PdfColor.fromInt(0xFFD6DEE7),
-                        fontSize: 10)),
+                        borderRadius: pw.BorderRadius.circular(8)),
+                    child: pw.Image(logo, fit: pw.BoxFit.contain)),
+                pw.SizedBox(width: 14),
+                pw.Expanded(
+                    child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                      pw.Text('IMFFAA Delivery',
+                          style: const pw.TextStyle(
+                              color: PdfColors.white,
+                              fontSize: 21,
+                              fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 5),
+                      pw.Text('COMPROBANTE DE PEDIDO',
+                          style: const pw.TextStyle(
+                              color: PdfColor.fromInt(0xFFE2F2E6),
+                              fontSize: 9,
+                              letterSpacing: 1.1)),
+                    ])),
+                pw.SizedBox(width: 12),
+                pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text('PEDIDO',
+                          style: const pw.TextStyle(
+                              color: PdfColor.fromInt(0xFFE2F2E6),
+                              fontSize: 8,
+                              letterSpacing: 1)),
+                      pw.SizedBox(height: 4),
+                      pw.Text('#$orderReference',
+                          style: const pw.TextStyle(
+                              color: PdfColors.white,
+                              fontSize: 13,
+                              fontWeight: pw.FontWeight.bold)),
+                    ]),
               ])),
       pw.SizedBox(height: 22),
       pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
@@ -40,9 +76,12 @@ Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
             child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-              pw.Text('Pedido #${order.id}',
+              pw.Text('DETALLES DEL PEDIDO',
                   style: const pw.TextStyle(
-                      fontSize: 15, fontWeight: pw.FontWeight.bold)),
+                      fontSize: 9,
+                      color: brandGreen,
+                      letterSpacing: 1,
+                      fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 5),
               pw.Text('Fecha: $date'),
               pw.Text('Estado: ${orderStatusLabel(order.status)}')
@@ -53,7 +92,10 @@ Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
                 children: [
               pw.Text('DATOS DEL CLIENTE',
                   style: const pw.TextStyle(
-                      fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                      fontSize: 9,
+                      color: brandGreen,
+                      letterSpacing: 1,
+                      fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 5),
               pw.Text(order.customer),
               pw.Text(order.email),
@@ -62,7 +104,7 @@ Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
             ])),
       ]),
       pw.SizedBox(height: 20),
-      pw.Divider(color: PdfColors.grey400),
+      pw.Divider(color: brandGreen, thickness: 1.2),
       pw.SizedBox(height: 6),
       pw.Text('ARTÍCULOS',
           style:
@@ -105,7 +147,7 @@ Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
               child: pw.Column(children: [
                 _totalRow('Subtotal', order.subtotal),
                 _totalRow('Envío', order.shipping),
-                pw.Divider(color: PdfColors.grey500),
+                pw.Divider(color: brandGreen, thickness: 1.2),
                 pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [

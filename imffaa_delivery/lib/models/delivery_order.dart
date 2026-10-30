@@ -13,6 +13,11 @@ String orderStatusLabel(DeliveryOrderStatus status) {
   }
 }
 
+String shortOrderId(String id) {
+  final normalized = id.replaceAll('-', '').toUpperCase();
+  return normalized.length > 8 ? normalized.substring(0, 8) : normalized;
+}
+
 class DeliveryOrderLine {
   const DeliveryOrderLine({required this.productId, required this.name, required this.price, required this.quantity, required this.color, required this.size});
   final int productId;

@@ -14,6 +14,22 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
   String _ordersQuery = '';
   String _productsQuery = '';
   String _profilesQuery = '';
+  int _selectedModule = 0;
+  bool _isSidebarCollapsed = false;
+
+  static const _moduleLabels = ['Pedidos', 'Catálogo', 'Usuarios'];
+  static const _moduleIcons = [
+    Icons.local_shipping_outlined,
+    Icons.inventory_2_outlined,
+    Icons.manage_accounts_outlined,
+  ];
+
+  void _selectModule(int index) {
+    setState(() => _selectedModule = index);
+    if (index == 2 && _profiles.isEmpty && !_loadingProfiles) {
+      _loadProfiles();
+    }
+  }
 
   Future<void> _loadProfiles() async {
     setState(() => _loadingProfiles = true);
@@ -161,7 +177,8 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Pedido #${order.id}: ${orderStatusLabel(status)}'),
+        content: Text(
+            'Pedido #${shortOrderId(order.id)}: ${orderStatusLabel(status)}'),
         behavior: SnackBarBehavior.floating));
   }
 
@@ -831,9 +848,209 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
     }
   }
 
+  Widget _buildDesktopModuleNavigation(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final collapsed = _isSidebarCollapsed;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOut,
+      width: collapsed ? 76 : 248,
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        border: Border(right: BorderSide(color: colors.outlineVariant)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(collapsed ? 0 : 16, 16, 8, 14),
+            child: collapsed
+                ? Column(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: colors.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.admin_panel_settings_outlined,
+                          color: colors.onPrimaryContainer,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Expandir menú',
+                        constraints: const BoxConstraints.tightFor(
+                            width: 36, height: 36),
+                        padding: EdgeInsets.zero,
+                        onPressed: () =>
+                            setState(() => _isSidebarCollapsed = false),
+                        icon: const Icon(Icons.chevron_right_rounded),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: colors.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.admin_panel_settings_outlined,
+                          color: colors.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Administración',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Contraer menú',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () =>
+                            setState(() => _isSidebarCollapsed = true),
+                        icon: const Icon(Icons.chevron_left_rounded),
+                      ),
+                    ],
+                  ),
+          ),
+          Divider(height: 1, color: colors.outlineVariant),
+          const SizedBox(height: 14),
+          if (!collapsed)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 12, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'MÓDULOS',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                ),
+              ),
+            ),
+          for (var index = 0; index < _moduleLabels.length; index++)
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: collapsed ? 10 : 12,
+                vertical: 3,
+              ),
+              child: Tooltip(
+                message: _moduleLabels[index],
+                child: Material(
+                  color: _selectedModule == index
+                      ? colors.primaryContainer
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _selectModule(index),
+                    child: SizedBox(
+                      height: 48,
+                      child: Row(
+                        mainAxisAlignment: collapsed
+                            ? MainAxisAlignment.center
+                            : MainAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.only(
+                              left: collapsed ? 0 : 14,
+                              right: collapsed ? 0 : 12,
+                            ),
+                            child: Icon(
+                              _moduleIcons[index],
+                              size: 20,
+                              color: _selectedModule == index
+                                  ? colors.onPrimaryContainer
+                                  : colors.onSurfaceVariant,
+                            ),
+                          ),
+                          if (!collapsed)
+                            Expanded(
+                              child: Text(
+                                _moduleLabels[index],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: _selectedModule == index
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: _selectedModule == index
+                                      ? colors.onPrimaryContainer
+                                      : colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Tooltip(
+              message: collapsed ? 'Centro de control' : '',
+              child: Container(
+                height: 42,
+                alignment: collapsed ? Alignment.center : Alignment.centerLeft,
+                padding: EdgeInsets.symmetric(horizontal: collapsed ? 0 : 12),
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainerHighest.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: collapsed ? MainAxisSize.min : MainAxisSize.max,
+                  children: [
+                    Icon(
+                      Icons.dashboard_outlined,
+                      size: 18,
+                      color: colors.onSurfaceVariant,
+                    ),
+                    if (!collapsed) ...[
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          'Centro de control',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAdmin = widget.user?.role.toLowerCase() == 'admin';
+    final isWide = MediaQuery.sizeOf(context).width >= 800;
     return Scaffold(
         appBar: AppBar(
             title: ForjaBrand(
@@ -847,462 +1064,494 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
                   icon: const Icon(Icons.home_outlined))
             ]),
         body: SafeArea(
-          child: Center(
-              child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 920),
-                  child: ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
-                      children: [
-                        Container(
-                            padding: const EdgeInsets.all(22),
-                            decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF243240),
-                                      Color(0xFF405468)
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight),
-                                borderRadius: BorderRadius.circular(20)),
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(
-                                      Icons.admin_panel_settings_outlined,
-                                      color: Color(0xFFDCE6EF),
-                                      size: 28),
-                                  const SizedBox(height: 18),
-                                  const Text('ADMINISTRACIÓN',
-                                      style: TextStyle(
-                                          color: Color(0xFFDCE6EF),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 1.7)),
-                                  const SizedBox(height: 7),
-                                  Text('Centro de control',
-                                      style: GoogleFonts.dmSerifDisplay(
-                                          fontSize: 29, color: Colors.white)),
-                                  const SizedBox(height: 7),
-                                  Text(
-                                      isAdmin
-                                          ? 'Sesión: ${widget.user?.name ?? 'Administrador'}'
-                                          : 'Vista previa administrativa. En producción el rol debe venir de Supabase y validarse con RLS.',
-                                      style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 12,
-                                          height: 1.5)),
-                                ])),
-                        const SizedBox(height: 22),
-                        Card(
-                          clipBehavior: Clip.antiAlias,
-                          child: ExpansionTile(
-                              initiallyExpanded: true,
-                              leading:
-                                  const Icon(Icons.local_shipping_outlined),
-                              title: const Text('Pedidos en tiempo real',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.w800)),
-                              subtitle: const Text(
-                                  'Consultar pedidos, PDF y actualizar estados'),
-                              children: [
-                                Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                        14, 0, 14, 16),
-                                    child:
-                                        ValueListenableBuilder<
-                                                List<DeliveryOrder>>(
-                                            valueListenable: deliveryOrders,
-                                            builder: (context, orders, _) {
-                                              final visibleOrders = orders
-                                                  .where((o) =>
-                                                      '${o.id} ${o.customer} ${o.email} ${o.phone} ${o.status.name}'
-                                                          .toLowerCase()
-                                                          .contains(_ordersQuery
-                                                              .toLowerCase()))
-                                                  .toList();
-                                              return Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment
-                                                          .stretch,
-                                                  children: [
-                                                    TextField(
-                                                        onChanged: (v) =>
-                                                            setState(() =>
-                                                                _ordersQuery =
-                                                                    v),
-                                                        decoration:
-                                                            const InputDecoration(
-                                                                prefixIcon:
-                                                                    Icon(Icons
-                                                                        .search),
-                                                                hintText:
-                                                                    'Buscar pedidos por número, cliente o estado')),
-                                                    const SizedBox(height: 10),
-                                                    if (visibleOrders.isEmpty)
-                                                      Padding(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .all(20),
-                                                          child: Text(
-                                                              orders.isEmpty
-                                                                  ? 'Aún no hay pedidos registrados.'
-                                                                  : 'No hay pedidos que coincidan con la búsqueda.',
-                                                              textAlign:
-                                                                  TextAlign
-                                                                      .center)),
-                                                    ...visibleOrders
-                                                        .map(
-                                                            (order) =>
-                                                                Container(
-                                                                    margin: const EdgeInsets
-                                                                        .only(
-                                                                        bottom:
-                                                                            12),
-                                                                    padding:
-                                                                        const EdgeInsets.all(
-                                                                            15),
-                                                                    decoration: BoxDecoration(
-                                                                        color: Theme.of(context)
-                                                                            .colorScheme
-                                                                            .surface,
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(
-                                                                                16),
-                                                                        border: Border.all(
-                                                                            color: Theme.of(context)
-                                                                                .colorScheme
-                                                                                .outlineVariant)),
-                                                                    child: Column(
-                                                                        crossAxisAlignment:
-                                                                            CrossAxisAlignment.start,
-                                                                        children: [
-                                                                          Row(children: [
-                                                                            Expanded(child: Text('Pedido #${order.id}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14))),
-                                                                            Text(money(order.total),
-                                                                                style: const TextStyle(fontWeight: FontWeight.w900))
-                                                                          ]),
-                                                                          const SizedBox(
-                                                                              height: 4),
-                                                                          Text(
-                                                                              '${order.customer} · ${order.phone}',
-                                                                              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                                                                          const SizedBox(
-                                                                              height: 4),
-                                                                          Text(
-                                                                              '${order.lines.length} líneas · ${order.paymentMethod}',
-                                                                              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                                                                          const SizedBox(
-                                                                              height: 4),
-                                                                          Text(
-                                                                              'Fecha: ${formatOrderDate(order.createdAt)}',
-                                                                              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                                                                          const SizedBox(
-                                                                              height: 12),
-                                                                          _OrderStatusTimeline(
-                                                                              status: order.status),
-                                                                          const SizedBox(
-                                                                              height: 12),
-                                                                          Wrap(
-                                                                              spacing: 8,
-                                                                              runSpacing: 8,
-                                                                              children: [
-                                                                                OutlinedButton.icon(
-                                                                                    onPressed: () async {
-                                                                                      try {
-                                                                                        final bytes = order.receiptBytes ?? await createReceiptPdf(order);
-                                                                                        await Printing.layoutPdf(name: 'pedido_${order.id}.pdf', onLayout: (_) async => bytes);
-                                                                                      } catch (e) {
-                                                                                        if (mounted) showAppToast(context, 'No se pudo abrir el PDF: $e', isError: true);
-                                                                                      }
-                                                                                    },
-                                                                                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
-                                                                                    label: const Text('Ver PDF')),
-                                                                                OutlinedButton(onPressed: order.status == DeliveryOrderStatus.preparing ? () => _changeStatus(order, DeliveryOrderStatus.shipped) : null, child: const Text('Marcar enviado')),
-                                                                                FilledButton(onPressed: order.status == DeliveryOrderStatus.shipped ? () => _changeStatus(order, DeliveryOrderStatus.delivered) : null, child: const Text('Marcar entregado')),
-                                                                              ]),
-                                                                        ])))
-                                                  ]);
-                                            })),
-                              ]),
-                        ),
-                        const SizedBox(height: 10),
-                        Card(
-                          clipBehavior: Clip.antiAlias,
-                          child: ExpansionTile(
-                            leading: const Icon(Icons.inventory_2_outlined),
-                            title: const Text('Catálogo y almacén',
-                                style: TextStyle(fontWeight: FontWeight.w800)),
-                            subtitle: const Text(
-                                'Agregar, editar productos e inventario'),
-                            children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(14, 0, 14, 16),
+          child: Row(
+            children: [
+              if (isWide) _buildDesktopModuleNavigation(context),
+              Expanded(
+                child: Center(
+                    child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 920),
+                        child: ListView(
+                          key: PageStorageKey<int>(_selectedModule),
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
+                          children: [
+                            Container(
+                                padding: const EdgeInsets.all(22),
+                                decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF243240),
+                                          Color(0xFF405468)
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight),
+                                    borderRadius: BorderRadius.circular(20)),
                                 child: Column(
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: FilledButton.icon(
-                                        onPressed: _createProduct,
-                                        icon: const Icon(Icons.add_rounded,
-                                            size: 17),
-                                        label: const Text('Añadir producto'),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    TextField(
-                                        onChanged: (v) =>
-                                            setState(() => _productsQuery = v),
-                                        decoration: const InputDecoration(
-                                            prefixIcon: Icon(Icons.search),
-                                            hintText:
-                                                'Buscar productos por nombre o categoría')),
-                                    const SizedBox(height: 10),
-                                    ValueListenableBuilder<Map<int, int>>(
-                                      valueListenable: inventoryCounts,
-                                      builder: (context, stock, _) => Column(
-                                        children: catalogProducts.value
-                                            .where((p) =>
-                                                '${p.name} ${p.category}'
-                                                    .toLowerCase()
-                                                    .contains(_productsQuery
-                                                        .toLowerCase()))
-                                            .map((product) {
-                                          return Container(
-                                            margin: const EdgeInsets.only(
-                                                bottom: 8),
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .surface,
-                                              borderRadius:
-                                                  BorderRadius.circular(14),
-                                              border: Border.all(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .outlineVariant),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  child: SizedBox(
-                                                    width: 52,
-                                                    height: 56,
-                                                    child: ProductImage(
-                                                        url: product.image),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 11),
-                                                Expanded(
-                                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                          Icons.admin_panel_settings_outlined,
+                                          color: Color(0xFFDCE6EF),
+                                          size: 28),
+                                      const SizedBox(height: 18),
+                                      const Text('ADMINISTRACIÓN',
+                                          style: TextStyle(
+                                              color: Color(0xFFDCE6EF),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 1.7)),
+                                      const SizedBox(height: 7),
+                                      Text('Centro de control',
+                                          style: GoogleFonts.dmSerifDisplay(
+                                              fontSize: 29,
+                                              color: Colors.white)),
+                                      const SizedBox(height: 7),
+                                      Text(
+                                          isAdmin
+                                              ? 'Sesión: ${widget.user?.name ?? 'Administrador'}'
+                                              : 'Vista previa administrativa. En producción el rol debe venir de Supabase y validarse con RLS.',
+                                          style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                              height: 1.5)),
+                                    ])),
+                            if (_selectedModule == 0) ...[
+                              const SizedBox(height: 8),
+                              Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(children: [
+                                  const ListTile(
+                                    leading:
+                                        Icon(Icons.local_shipping_outlined),
+                                    title: Text('Pedidos',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w800)),
+                                    subtitle: Text(
+                                        'Revisar pedidos y actualizar estados'),
+                                  ),
+                                  Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          14, 0, 14, 16),
+                                      child:
+                                          ValueListenableBuilder<
+                                                  List<DeliveryOrder>>(
+                                              valueListenable: deliveryOrders,
+                                              builder: (context, orders, _) {
+                                                final visibleOrders = orders
+                                                    .where((o) =>
+                                                        '${o.id} ${o.customer} ${o.email} ${o.phone} ${o.status.name}'
+                                                            .toLowerCase()
+                                                            .contains(_ordersQuery
+                                                                .toLowerCase()))
+                                                    .toList();
+                                                return Column(
                                                     crossAxisAlignment:
                                                         CrossAxisAlignment
-                                                            .start,
+                                                            .stretch,
                                                     children: [
-                                                      Text(product.name,
-                                                          style: const TextStyle(
-                                                              fontSize: 12,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w800)),
-                                                      const SizedBox(height: 4),
-                                                      Text(
-                                                        '${money(priceFor(product))} · Stock: ${stock[product.id] ?? 0}',
-                                                        style: TextStyle(
-                                                            fontSize: 11,
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .colorScheme
-                                                                .onSurfaceVariant),
+                                                      TextField(
+                                                          onChanged: (v) =>
+                                                              setState(() =>
+                                                                  _ordersQuery =
+                                                                      v),
+                                                          decoration:
+                                                              const InputDecoration(
+                                                                  prefixIcon:
+                                                                      Icon(Icons
+                                                                          .search),
+                                                                  hintText:
+                                                                      'Buscar pedidos por número, cliente o estado')),
+                                                      const SizedBox(
+                                                          height: 10),
+                                                      if (visibleOrders.isEmpty)
+                                                        Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(20),
+                                                            child: Text(
+                                                                orders.isEmpty
+                                                                    ? 'Aún no hay pedidos registrados.'
+                                                                    : 'No hay pedidos que coincidan con la búsqueda.',
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .center)),
+                                                      ...visibleOrders
+                                                          .map(
+                                                              (order) =>
+                                                                  Container(
+                                                                      margin: const EdgeInsets
+                                                                          .only(
+                                                                          bottom:
+                                                                              12),
+                                                                      padding: const EdgeInsets
+                                                                          .all(
+                                                                          15),
+                                                                      decoration: BoxDecoration(
+                                                                          color: Theme.of(context)
+                                                                              .colorScheme
+                                                                              .surface,
+                                                                          borderRadius: BorderRadius.circular(
+                                                                              16),
+                                                                          border: Border.all(
+                                                                              color: Theme.of(context)
+                                                                                  .colorScheme
+                                                                                  .outlineVariant)),
+                                                                      child: Column(
+                                                                          crossAxisAlignment:
+                                                                              CrossAxisAlignment.start,
+                                                                          children: [
+                                                                            Row(children: [
+                                                                              Expanded(child: Text('Pedido #${shortOrderId(order.id)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14))),
+                                                                              Text(money(order.total), style: const TextStyle(fontWeight: FontWeight.w900))
+                                                                            ]),
+                                                                            const SizedBox(height: 4),
+                                                                            Text('${order.customer} · ${order.phone}',
+                                                                                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                                                            const SizedBox(height: 4),
+                                                                            Text('${order.lines.length} líneas · ${order.paymentMethod}',
+                                                                                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                                                            const SizedBox(height: 4),
+                                                                            Text('Fecha: ${formatOrderDate(order.createdAt)}',
+                                                                                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                                                            const SizedBox(height: 12),
+                                                                            _OrderStatusTimeline(status: order.status),
+                                                                            const SizedBox(height: 12),
+                                                                            Wrap(spacing: 8, runSpacing: 8, children: [
+                                                                              OutlinedButton.icon(
+                                                                                  onPressed: () async {
+                                                                                    try {
+                                                                                      final bytes = await createReceiptPdf(order);
+                                                                                      await Printing.layoutPdf(name: 'pedido_${shortOrderId(order.id)}.pdf', onLayout: (_) async => bytes);
+                                                                                    } catch (e) {
+                                                                                      if (mounted) showAppToast(context, 'No se pudo abrir el PDF: $e', isError: true);
+                                                                                    }
+                                                                                  },
+                                                                                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
+                                                                                  label: const Text('Ver PDF')),
+                                                                              OutlinedButton(onPressed: order.status == DeliveryOrderStatus.preparing ? () => _changeStatus(order, DeliveryOrderStatus.shipped) : null, child: const Text('Marcar enviado')),
+                                                                              FilledButton(onPressed: order.status == DeliveryOrderStatus.shipped ? () => _changeStatus(order, DeliveryOrderStatus.delivered) : null, child: const Text('Marcar entregado')),
+                                                                            ]),
+                                                                          ])))
+                                                    ]);
+                                              })),
+                                ]),
+                              ),
+                              const SizedBox(height: 20),
+                              Container(
+                                  padding: const EdgeInsets.all(13),
+                                  decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest
+                                          .withValues(alpha: .75),
+                                      borderRadius: BorderRadius.circular(13)),
+                                  child: Text(
+                                      'Pedidos sincronizados con Supabase Realtime. Asegúrate de ejecutar supabase/schema.sql y configurar los buckets privados antes de usar la aplicación.',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          height: 1.5,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant))),
+                            ],
+                            if (_selectedModule == 1) ...[
+                              const SizedBox(height: 8),
+                              Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  children: [
+                                    const ListTile(
+                                      leading: Icon(Icons.inventory_2_outlined),
+                                      title: Text('Catálogo y almacén',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800)),
+                                      subtitle: Text(
+                                          'Agregar, editar productos e inventario'),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          14, 0, 14, 16),
+                                      child: Column(
+                                        children: [
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: FilledButton.icon(
+                                              onPressed: _createProduct,
+                                              icon: const Icon(
+                                                  Icons.add_rounded,
+                                                  size: 17),
+                                              label:
+                                                  const Text('Añadir producto'),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          TextField(
+                                              onChanged: (v) => setState(
+                                                  () => _productsQuery = v),
+                                              decoration: const InputDecoration(
+                                                  prefixIcon:
+                                                      Icon(Icons.search),
+                                                  hintText:
+                                                      'Buscar productos por nombre o categoría')),
+                                          const SizedBox(height: 10),
+                                          ValueListenableBuilder<Map<int, int>>(
+                                            valueListenable: inventoryCounts,
+                                            builder: (context, stock, _) =>
+                                                Column(
+                                              children: catalogProducts.value
+                                                  .where((p) =>
+                                                      '${p.name} ${p.category}'
+                                                          .toLowerCase()
+                                                          .contains(_productsQuery
+                                                              .toLowerCase()))
+                                                  .map((product) {
+                                                return Container(
+                                                  margin: const EdgeInsets.only(
+                                                      bottom: 8),
+                                                  padding:
+                                                      const EdgeInsets.all(12),
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .surface,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            14),
+                                                    border: Border.all(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .outlineVariant),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      ClipRRect(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                        child: SizedBox(
+                                                          width: 52,
+                                                          height: 56,
+                                                          child: ProductImage(
+                                                              url: product
+                                                                  .image),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 11),
+                                                      Expanded(
+                                                        child: Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Text(product.name,
+                                                                  style: const TextStyle(
+                                                                      fontSize:
+                                                                          12,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w800)),
+                                                              const SizedBox(
+                                                                  height: 4),
+                                                              Text(
+                                                                '${money(priceFor(product))} · Stock: ${stock[product.id] ?? 0}',
+                                                                style: TextStyle(
+                                                                    fontSize:
+                                                                        11,
+                                                                    color: Theme.of(
+                                                                            context)
+                                                                        .colorScheme
+                                                                        .onSurfaceVariant),
+                                                              ),
+                                                            ]),
+                                                      ),
+                                                      IconButton(
+                                                        tooltip:
+                                                            'Editar precio y almacén',
+                                                        onPressed: () =>
+                                                            _editProduct(
+                                                                product),
+                                                        icon: const Icon(Icons
+                                                            .edit_outlined),
                                                       ),
                                                     ],
                                                   ),
-                                                ),
-                                                IconButton(
-                                                  tooltip:
-                                                      'Editar precio y almacén',
-                                                  onPressed: () =>
-                                                      _editProduct(product),
-                                                  icon: const Icon(
-                                                      Icons.edit_outlined),
-                                                ),
-                                              ],
+                                                );
+                                              }).toList(),
                                             ),
-                                          );
-                                        }).toList(),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Card(
-                          clipBehavior: Clip.antiAlias,
-                          child: ExpansionTile(
-                            leading: const Icon(Icons.manage_accounts_outlined),
-                            title: const Text('Usuarios y roles',
-                                style: TextStyle(fontWeight: FontWeight.w800)),
-                            subtitle: const Text(
-                                'Asignar rol de cliente o administrador'),
-                            onExpansionChanged: (expanded) {
-                              if (expanded &&
-                                  _profiles.isEmpty &&
-                                  !_loadingProfiles) _loadProfiles();
-                            },
-                            children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      TextField(
-                                          onChanged: (v) => setState(
-                                              () => _profilesQuery = v),
-                                          decoration: const InputDecoration(
-                                              prefixIcon: Icon(Icons.search),
-                                              hintText:
-                                                  'Buscar usuarios por nombre, correo o rol')),
-                                      const SizedBox(height: 10),
-                                      _loadingProfiles
-                                          ? const Center(
-                                              child: Padding(
-                                                  padding: EdgeInsets.all(20),
-                                                  child:
-                                                      CircularProgressIndicator()))
-                                          : _profiles
-                                                  .where((p) =>
-                                                      '${p['full_name'] ?? ''} ${p['id'] ?? ''} ${p['role'] ?? ''}'
-                                                          .toLowerCase()
-                                                          .contains(_profilesQuery
-                                                              .toLowerCase()))
-                                                  .isEmpty
-                                              ? Column(
-                                                  children: [
-                                                    const Text(
-                                                        'No hay usuarios cargados.'),
-                                                    TextButton.icon(
-                                                      onPressed: _loadProfiles,
-                                                      icon: const Icon(
-                                                          Icons.refresh),
-                                                      label: const Text(
-                                                          'Cargar usuarios'),
-                                                    ),
-                                                  ],
-                                                )
-                                              : Column(
-                                                  children: _profiles
+                            if (_selectedModule == 2) ...[
+                              const SizedBox(height: 8),
+                              Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(children: [
+                                  const ListTile(
+                                    leading:
+                                        Icon(Icons.manage_accounts_outlined),
+                                    title: Text('Usuarios y roles',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w800)),
+                                    subtitle: Text(
+                                        'Asignar rol de cliente o administrador'),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        14, 0, 14, 14),
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          TextField(
+                                              onChanged: (v) => setState(
+                                                  () => _profilesQuery = v),
+                                              decoration: const InputDecoration(
+                                                  prefixIcon:
+                                                      Icon(Icons.search),
+                                                  hintText:
+                                                      'Buscar usuarios por nombre, correo o rol')),
+                                          const SizedBox(height: 10),
+                                          _loadingProfiles
+                                              ? const Center(
+                                                  child: Padding(
+                                                      padding:
+                                                          EdgeInsets.all(20),
+                                                      child:
+                                                          CircularProgressIndicator()))
+                                              : _profiles
                                                       .where((p) =>
                                                           '${p['full_name'] ?? ''} ${p['id'] ?? ''} ${p['role'] ?? ''}'
                                                               .toLowerCase()
                                                               .contains(
                                                                   _profilesQuery
                                                                       .toLowerCase()))
-                                                      .map((profile) {
-                                                    final role = [
-                                                      'cliente',
-                                                      'admin'
-                                                    ].contains(profile['role'])
-                                                        ? profile['role']
-                                                            as String
-                                                        : 'cliente';
-                                                    final isCurrentUser =
-                                                        profile['id']
-                                                                ?.toString() ==
-                                                            supabase
-                                                                .auth
-                                                                .currentUser
-                                                                ?.id;
-                                                    return ListTile(
-                                                      contentPadding:
-                                                          EdgeInsets.zero,
-                                                      leading: const CircleAvatar(
-                                                          child: Icon(Icons
-                                                              .person_outline)),
-                                                      title: Text((profile[
-                                                                  'full_name'] ??
-                                                              'Usuario sin nombre')
-                                                          .toString()),
-                                                      subtitle: Text(
-                                                          'ID: ${profile['id']}'),
-                                                      trailing: SizedBox(
-                                                        width: 145,
-                                                        child:
-                                                            DropdownButtonFormField<
-                                                                String>(
-                                                          initialValue: role,
-                                                          isExpanded: true,
-                                                          decoration:
-                                                              const InputDecoration(
-                                                            labelText: 'Rol',
-                                                            contentPadding:
-                                                                EdgeInsets
-                                                                    .symmetric(
+                                                      .isEmpty
+                                                  ? Column(
+                                                      children: [
+                                                        const Text(
+                                                            'No hay usuarios cargados.'),
+                                                        TextButton.icon(
+                                                          onPressed:
+                                                              _loadProfiles,
+                                                          icon: const Icon(
+                                                              Icons.refresh),
+                                                          label: const Text(
+                                                              'Cargar usuarios'),
+                                                        ),
+                                                      ],
+                                                    )
+                                                  : Column(
+                                                      children: _profiles
+                                                          .where((p) =>
+                                                              '${p['full_name'] ?? ''} ${p['id'] ?? ''} ${p['role'] ?? ''}'
+                                                                  .toLowerCase()
+                                                                  .contains(
+                                                                      _profilesQuery
+                                                                          .toLowerCase()))
+                                                          .map((profile) {
+                                                        final role = [
+                                                          'cliente',
+                                                          'admin'
+                                                        ].contains(
+                                                                profile['role'])
+                                                            ? profile['role']
+                                                                as String
+                                                            : 'cliente';
+                                                        final isCurrentUser =
+                                                            profile['id']
+                                                                    ?.toString() ==
+                                                                supabase
+                                                                    .auth
+                                                                    .currentUser
+                                                                    ?.id;
+                                                        return ListTile(
+                                                          contentPadding:
+                                                              EdgeInsets.zero,
+                                                          leading: const CircleAvatar(
+                                                              child: Icon(Icons
+                                                                  .person_outline)),
+                                                          title: Text((profile[
+                                                                      'full_name'] ??
+                                                                  'Usuario sin nombre')
+                                                              .toString()),
+                                                          subtitle: Text(
+                                                              'ID: ${profile['id']}'),
+                                                          trailing: SizedBox(
+                                                            width: 145,
+                                                            child:
+                                                                DropdownButtonFormField<
+                                                                    String>(
+                                                              initialValue:
+                                                                  role,
+                                                              isExpanded: true,
+                                                              decoration:
+                                                                  const InputDecoration(
+                                                                labelText:
+                                                                    'Rol',
+                                                                contentPadding:
+                                                                    EdgeInsets.symmetric(
                                                                         horizontal:
                                                                             10,
                                                                         vertical:
                                                                             8),
+                                                              ),
+                                                              items: const [
+                                                                DropdownMenuItem(
+                                                                    value:
+                                                                        'cliente',
+                                                                    child: Text(
+                                                                        'Cliente')),
+                                                                DropdownMenuItem(
+                                                                    value:
+                                                                        'admin',
+                                                                    child: Text(
+                                                                        'Administrador')),
+                                                              ],
+                                                              onChanged:
+                                                                  isCurrentUser
+                                                                      ? null
+                                                                      : (value) {
+                                                                          if (value != null &&
+                                                                              value != profile['role']) {
+                                                                            _changeUserRole(profile,
+                                                                                value);
+                                                                          }
+                                                                        },
+                                                            ),
                                                           ),
-                                                          items: const [
-                                                            DropdownMenuItem(
-                                                                value:
-                                                                    'cliente',
-                                                                child: Text(
-                                                                    'Cliente')),
-                                                            DropdownMenuItem(
-                                                                value: 'admin',
-                                                                child: Text(
-                                                                    'Administrador')),
-                                                          ],
-                                                          onChanged:
-                                                              isCurrentUser
-                                                                  ? null
-                                                                  : (value) {
-                                                                      if (value !=
-                                                                              null &&
-                                                                          value !=
-                                                                              profile['role']) {
-                                                                        _changeUserRole(
-                                                                            profile,
-                                                                            value);
-                                                                      }
-                                                                    },
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }).toList(),
-                                                ),
-                                    ]),
+                                                        );
+                                                      }).toList(),
+                                                    ),
+                                        ]),
+                                  ),
+                                ]),
                               ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Container(
-                            padding: const EdgeInsets.all(13),
-                            decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest
-                                    .withValues(alpha: .75),
-                                borderRadius: BorderRadius.circular(13)),
-                            child: Text(
-                                'Pedidos sincronizados con Supabase Realtime. Asegúrate de ejecutar supabase/schema.sql y configurar los buckets privados antes de usar la aplicación.',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    height: 1.5,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant))),
-                      ]))),
-        ));
+                          ],
+                        ))),
+              ),
+            ],
+          ),
+        ),
+        bottomNavigationBar: isWide
+            ? null
+            : NavigationBar(
+                selectedIndex: _selectedModule,
+                onDestinationSelected: _selectModule,
+                destinations: List.generate(
+                  _moduleLabels.length,
+                  (index) => NavigationDestination(
+                    icon: Icon(_moduleIcons[index]),
+                    label: _moduleLabels[index],
+                  ),
+                ),
+              ));
   }
 }
 

@@ -114,9 +114,139 @@ drop policy if exists "users insert own order items or admin" on public.order_it
 create policy "users insert own order items or admin" on public.order_items for insert to authenticated
 with check (exists (select 1 from public.orders o where o.id = order_id and (o.user_id = auth.uid() or public.is_admin())));
 
+create or replace function public.place_order(
+  p_customer_name text,
+  p_customer_email text,
+  p_phone text,
+  p_delivery_address text,
+  p_payment_method text,
+  p_items jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_order_id uuid;
+  v_created_at timestamptz := now();
+  v_subtotal integer := 0;
+  v_shipping integer := 80;
+  v_item record;
+  v_product_name text;
+  v_unit_price integer;
+  v_remaining_stock integer;
+  v_order_lines jsonb := '[]'::jsonb;
+begin
+  if v_user_id is null then
+    raise exception 'Debes iniciar sesión para registrar el pedido.';
+  end if;
+  if nullif(trim(p_customer_name), '') is null
+      or nullif(trim(p_customer_email), '') is null
+      or nullif(trim(p_phone), '') is null
+      or nullif(trim(p_delivery_address), '') is null
+      or nullif(trim(p_payment_method), '') is null then
+    raise exception 'Completa los datos del pedido.';
+  end if;
+  if jsonb_typeof(p_items) is distinct from 'array' then
+    raise exception 'El pedido debe incluir una lista de productos.';
+  end if;
+  if jsonb_array_length(p_items) = 0 then
+    raise exception 'El pedido debe incluir al menos un producto.';
+  end if;
+
+  for v_item in
+    select product_id, quantity, coalesce(color, '') as color,
+        coalesce(size, '') as size
+    from jsonb_to_recordset(p_items) as item(
+      product_id bigint,
+      quantity integer,
+      color text,
+      size text
+    )
+  loop
+    if v_item.product_id is null or v_item.quantity is null
+        or v_item.quantity <= 0 then
+      raise exception 'El producto o la cantidad del pedido no son válidos.';
+    end if;
+
+    update public.products
+    set stock = stock - v_item.quantity
+    where id = v_item.product_id
+      and active = true
+      and stock >= v_item.quantity
+    returning name, price, stock
+      into v_product_name, v_unit_price, v_remaining_stock;
+
+    if not found then
+      raise exception 'Stock insuficiente para el producto %.',
+          v_item.product_id;
+    end if;
+
+    v_subtotal := v_subtotal + (v_unit_price * v_item.quantity);
+    v_order_lines := v_order_lines || jsonb_build_array(jsonb_build_object(
+      'product_id', v_item.product_id,
+      'product_name', v_product_name,
+      'unit_price', v_unit_price,
+      'quantity', v_item.quantity,
+      'color', v_item.color,
+      'size', v_item.size,
+      'line_total', v_unit_price * v_item.quantity,
+      'stock_remaining', v_remaining_stock
+    ));
+  end loop;
+
+  insert into public.orders (
+    user_id, customer_name, customer_email, phone, delivery_address,
+    payment_method, status, subtotal, shipping, total, created_at
+  )
+  values (
+    v_user_id, trim(p_customer_name), trim(p_customer_email), trim(p_phone),
+    trim(p_delivery_address), trim(p_payment_method), 'preparing',
+    v_subtotal, v_shipping, v_subtotal + v_shipping, v_created_at
+  )
+  returning id into v_order_id;
+
+  insert into public.order_items (
+    order_id, product_id, product_name, unit_price, quantity, color, size,
+    line_total
+  )
+  select v_order_id, item.product_id, item.product_name, item.unit_price,
+      item.quantity, item.color, item.size, item.line_total
+  from jsonb_to_recordset(v_order_lines) as item(
+    product_id bigint,
+    product_name text,
+    unit_price integer,
+    quantity integer,
+    color text,
+    size text,
+    line_total integer
+  );
+
+  return jsonb_build_object(
+    'id', v_order_id,
+    'subtotal', v_subtotal,
+    'shipping', v_shipping,
+    'total', v_subtotal + v_shipping,
+    'created_at', v_created_at,
+    'lines', v_order_lines
+  );
+end;
+$$;
+
+revoke all on function public.place_order(text, text, text, text, text, jsonb)
+  from public, anon;
+grant execute on function public.place_order(text, text, text, text, text, jsonb)
+  to authenticated;
+
 -- Habilita cambios de pedidos en Realtime para que el panel se actualice.
 do $$ begin
   alter publication supabase_realtime add table public.orders;
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.products;
 exception when duplicate_object then null;
 end $$;
 
