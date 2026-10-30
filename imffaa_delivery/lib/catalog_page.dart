@@ -31,11 +31,12 @@ class _CatalogPageState extends State<CatalogPage> {
     _authSubscription = supabase.auth.onAuthStateChange.listen((event) {
       final user = event.session?.user;
       if (user == null) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             currentUser = null;
             _restoringSession = false;
           });
+        }
       } else {
         _restoreSession();
       }
@@ -65,13 +66,14 @@ class _CatalogPageState extends State<CatalogPage> {
         role: (profile?['role'] ?? 'cliente').toString().toLowerCase(),
         userId: user.id,
       );
-      if (mounted)
+      if (mounted) {
         setState(() {
           currentUser = restored;
           _restoringSession = false;
         });
+      }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           currentUser = AuthResult(
               name: user.email?.split('@').first ?? 'Usuario',
@@ -81,6 +83,7 @@ class _CatalogPageState extends State<CatalogPage> {
               userId: user.id);
           _restoringSession = false;
         });
+      }
     }
   }
 
@@ -137,10 +140,12 @@ class _CatalogPageState extends State<CatalogPage> {
           '${p.name} ${p.description} ${p.category}'.toLowerCase().contains(q);
       return matchesCategory && matchesGender && matchesQuery;
     }).toList();
-    if (sort == 'Precio menor')
+    if (sort == 'Precio menor') {
       items.sort((a, b) => priceFor(a).compareTo(priceFor(b)));
-    if (sort == 'Precio mayor')
+    }
+    if (sort == 'Precio mayor') {
       items.sort((a, b) => priceFor(b).compareTo(priceFor(a)));
+    }
     return items;
   }
 
@@ -194,12 +199,13 @@ class _CatalogPageState extends State<CatalogPage> {
     final currentQuantity = cart[product.id] ?? 0;
     final requestedQuantity = quantity.clamp(1, 999).toInt();
     if (currentQuantity + requestedQuantity > stockFor(product)) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(stockFor(product) == 0
                 ? 'Producto agotado'
                 : 'Solo hay ${stockFor(product) - currentQuantity} unidades disponibles'),
             behavior: SnackBarBehavior.floating));
+      }
       return;
     }
     setState(() {
@@ -312,8 +318,8 @@ class _CatalogPageState extends State<CatalogPage> {
                                       bottom: 8,
                                       child: DecoratedBox(
                                         decoration: BoxDecoration(
-                                            color:
-                                                Colors.black.withOpacity(.65),
+                                            color: Colors.black
+                                                .withValues(alpha: .65),
                                             borderRadius:
                                                 BorderRadius.circular(12)),
                                         child: const Padding(
@@ -378,13 +384,13 @@ class _CatalogPageState extends State<CatalogPage> {
                         decoration: BoxDecoration(
                             color: Theme.of(dialogContext)
                                 .colorScheme
-                                .surfaceVariant,
+                                .surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(12)),
-                        child: Row(children: [
-                          const Icon(Icons.lock_outline_rounded,
+                        child: const Row(children: [
+                          Icon(Icons.lock_outline_rounded,
                               size: 18, color: navy),
-                          const SizedBox(width: 9),
-                          const Expanded(
+                          SizedBox(width: 9),
+                          Expanded(
                               child: Text(
                                   'Este artículo requiere el permiso correspondiente en tu cuenta.',
                                   style: TextStyle(fontSize: 11, height: 1.4)))
@@ -434,8 +440,10 @@ class _CatalogPageState extends State<CatalogPage> {
                           icon: Icons.add,
                           onTap: () => setDialogState(() {
                                 if (previewQuantity <
-                                    stockFor(product) - (cart[product.id] ?? 0))
+                                    stockFor(product) -
+                                        (cart[product.id] ?? 0)) {
                                   previewQuantity++;
+                                }
                               })),
                     ],
                   ),
@@ -547,9 +555,10 @@ class _CatalogPageState extends State<CatalogPage> {
                   showAppToast(context, 'Sesión cerrada correctamente.');
                 }
               } catch (e) {
-                if (mounted)
+                if (mounted) {
                   showAppToast(context, 'No se pudo cerrar la sesión: $e',
                       isError: true);
+                }
               }
             },
             child: const Text('Cerrar sesión'),
@@ -560,8 +569,22 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 
   void changeQuantity(Product product, int delta) {
+    final current = cart[product.id] ?? 0;
+    final next = current + delta;
+    final available = stockFor(product);
+    if (delta > 0 && next > available) {
+      final message = available <= 0
+          ? 'Producto agotado'
+          : current >= available
+              ? 'Ya agregaste todas las unidades disponibles'
+              : 'Solo puedes agregar ${available - current} unidades más';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+            content: Text(message), behavior: SnackBarBehavior.floating));
+      return;
+    }
     setState(() {
-      final next = (cart[product.id] ?? 0) + delta;
       if (next <= 0) {
         cart.remove(product.id);
         cartColors.remove(product.id);
@@ -728,7 +751,7 @@ class _CatalogPageState extends State<CatalogPage> {
                                     color: Theme.of(dialogContext)
                                         .colorScheme
                                         .surfaceContainerHighest
-                                        .withOpacity(.75),
+                                        .withValues(alpha: .75),
                                     borderRadius: BorderRadius.circular(14)),
                                 child: Column(children: [
                                   Row(children: [
@@ -802,9 +825,10 @@ class _CatalogPageState extends State<CatalogPage> {
     final now = DateTime.now();
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Inicia sesión para registrar el pedido.')));
+      }
       return;
     }
     final orderId = now.microsecondsSinceEpoch.toString().substring(7);
@@ -825,11 +849,12 @@ class _CatalogPageState extends State<CatalogPage> {
             (inventoryCounts.value[line.productId] ?? 0) < line.quantity)
         .toList();
     if (unavailable.isNotEmpty) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
                 'Stock insuficiente para ${unavailable.first.name}. Ajusta la cantidad antes de comprar.'),
             behavior: SnackBarBehavior.floating));
+      }
       return;
     }
     final subtotal = lines.fold<int>(0, (sum, line) => sum + line.total);
@@ -902,9 +927,10 @@ class _CatalogPageState extends State<CatalogPage> {
       order = order.copyWith(receiptBytes: bytes);
       deliveryOrders.value = [order, ...deliveryOrders.value];
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('No se pudo guardar el pedido en Supabase: $e')));
+      }
       return;
     }
     final updatedStock = Map<int, int>.from(inventoryCounts.value);
@@ -1037,13 +1063,16 @@ class _CatalogPageState extends State<CatalogPage> {
           .toList();
       deliveryOrders.value = [...parsed, ...others];
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('No se pudieron actualizar tus pedidos: $e')));
+      }
     }
   }
 
   void showMyOrders() {
+    final screenSize = MediaQuery.sizeOf(context);
+    final isCompact = screenSize.width < 600;
     _refreshMyOrders();
     final liveOrders = supabase
         .channel('customer-orders-${currentUser?.userId ?? 'guest'}')
@@ -1055,127 +1084,136 @@ class _CatalogPageState extends State<CatalogPage> {
         )
         .subscribe();
 
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (sheetContext) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: SizedBox(
-            height: MediaQuery.sizeOf(sheetContext).height * .78,
-            child: ValueListenableBuilder<List<DeliveryOrder>>(
-              valueListenable: deliveryOrders,
-              builder: (context, orders, _) {
-                final mine = orders
-                    .where((o) =>
-                        currentUser == null || o.email == currentUser!.email)
-                    .toList();
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 14, 16),
-                      child: Row(
+    showDialog<void>(
+        context: context,
+        builder: (dialogContext) => Dialog(
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22)),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                    maxWidth: 720, maxHeight: screenSize.height - 48),
+                child: SizedBox(
+                  width: (screenSize.width - 32).clamp(0.0, 720.0).toDouble(),
+                  height: screenSize.height * (isCompact ? .76 : .68),
+                  child: ValueListenableBuilder<List<DeliveryOrder>>(
+                    valueListenable: deliveryOrders,
+                    builder: (context, orders, _) {
+                      final mine = orders
+                          .where((o) =>
+                              currentUser == null ||
+                              o.email == currentUser!.email)
+                          .toList();
+                      return Column(
                         children: [
-                          const Expanded(
-                            child: Text(
-                              'Mis pedidos',
-                              style: TextStyle(
-                                  fontSize: 22, fontWeight: FontWeight.w900),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 18, 14, 16),
+                            child: Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'Mis pedidos',
+                                    style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => Navigator.pop(dialogContext),
+                                  icon: const Icon(Icons.close_rounded),
+                                ),
+                              ],
                             ),
                           ),
-                          IconButton(
-                            onPressed: () => Navigator.pop(sheetContext),
-                            icon: const Icon(Icons.close_rounded),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    Expanded(
-                      child: mine.isEmpty
-                          ? const Center(
-                              child: Text('Todavía no tienes pedidos.'))
-                          : ListView.separated(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: mine.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                final order = mine[index];
-                                return Container(
-                                  padding: const EdgeInsets.all(15),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        Theme.of(context).colorScheme.surface,
-                                    border: Border.all(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outlineVariant,
-                                    ),
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              'Pedido #${order.id}',
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.w900),
-                                            ),
-                                          ),
-                                          Text(
-                                            money(order.total),
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w900),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      _OrderStatusTimeline(
-                                          status: order.status),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        '${order.lines.length} tipos de artículo · ${order.paymentMethod}',
-                                        style: TextStyle(
-                                          fontSize: 11,
+                          const Divider(height: 1),
+                          Expanded(
+                            child: mine.isEmpty
+                                ? const Center(
+                                    child: Text('Todavía no tienes pedidos.'))
+                                : ListView.separated(
+                                    padding: const EdgeInsets.all(16),
+                                    itemCount: mine.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 12),
+                                    itemBuilder: (context, index) {
+                                      final order = mine[index];
+                                      return Container(
+                                        padding: const EdgeInsets.all(15),
+                                        decoration: BoxDecoration(
                                           color: Theme.of(context)
                                               .colorScheme
-                                              .onSurfaceVariant,
+                                              .surface,
+                                          border: Border.all(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .outlineVariant,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(15),
                                         ),
-                                      ),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: TextButton.icon(
-                                          onPressed: () => _openReceipt(order),
-                                          icon: const Icon(
-                                              Icons.picture_as_pdf_outlined,
-                                              size: 17),
-                                          label: const Text('Comprobante PDF'),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    'Pedido #${order.id}',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w900),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  money(order.total),
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w900),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            _OrderStatusTimeline(
+                                                status: order.status),
+                                            const SizedBox(height: 10),
+                                            Text(
+                                              '${order.lines.length} tipos de artículo · ${order.paymentMethod}',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                            ),
+                                            Align(
+                                              alignment: Alignment.centerRight,
+                                              child: TextButton.icon(
+                                                onPressed: () =>
+                                                    _openReceipt(order),
+                                                icon: const Icon(
+                                                    Icons
+                                                        .picture_as_pdf_outlined,
+                                                    size: 17),
+                                                label: const Text(
+                                                    'Comprobante PDF'),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ],
+                                      );
+                                    },
                                   ),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    ).whenComplete(() => supabase.removeChannel(liveOrders));
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            )).whenComplete(() => supabase.removeChannel(liveOrders));
   }
 
   void clearFilters() {
@@ -1197,26 +1235,28 @@ class _CatalogPageState extends State<CatalogPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.sizeOf(context).width < 600;
+    final themeModeToggle = IconButton(
+      tooltip: appThemeMode.value == ThemeMode.dark
+          ? 'Activar modo claro'
+          : 'Activar modo oscuro',
+      onPressed: () => appThemeMode.value = appThemeMode.value == ThemeMode.dark
+          ? ThemeMode.light
+          : ThemeMode.dark,
+      icon: Icon(appThemeMode.value == ThemeMode.dark
+          ? Icons.light_mode_rounded
+          : Icons.dark_mode_rounded),
+    );
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 18,
         title: ForjaBrand(onTap: () {
-          if (Navigator.of(context).canPop())
+          if (Navigator.of(context).canPop()) {
             Navigator.of(context).popUntil((route) => route.isFirst);
+          }
         }),
         actions: [
-          IconButton(
-            tooltip: appThemeMode.value == ThemeMode.dark
-                ? 'Activar modo claro'
-                : 'Activar modo oscuro',
-            onPressed: () => appThemeMode.value =
-                appThemeMode.value == ThemeMode.dark
-                    ? ThemeMode.light
-                    : ThemeMode.dark,
-            icon: Icon(appThemeMode.value == ThemeMode.dark
-                ? Icons.light_mode_rounded
-                : Icons.dark_mode_rounded),
-          ),
+          if (!isCompact) themeModeToggle,
           if (currentUser?.role.toLowerCase() == 'admin')
             IconButton(
               tooltip: 'Panel administrativo',
@@ -1267,30 +1307,49 @@ class _CatalogPageState extends State<CatalogPage> {
             ),
           ),
         ],
-        bottom: searchVisible
+        bottom: searchVisible || isCompact
             ? PreferredSize(
-                preferredSize: const Size.fromHeight(64),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  child: TextField(
-                    controller: searchController,
-                    onChanged: (value) => setState(() => query = value),
-                    decoration: InputDecoration(
-                      hintText: 'Buscar productos...',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      isDense: true,
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                            color:
-                                Theme.of(context).colorScheme.outlineVariant),
+                preferredSize: Size.fromHeight(
+                    (isCompact ? 40.0 : 0.0) + (searchVisible ? 64.0 : 0.0)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isCompact)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 14),
+                          child: SizedBox(
+                            height: 40,
+                            child: themeModeToggle,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    if (searchVisible)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                        child: TextField(
+                          controller: searchController,
+                          onChanged: (value) => setState(() => query = value),
+                          decoration: InputDecoration(
+                            hintText: 'Buscar productos...',
+                            prefixIcon: const Icon(Icons.search_rounded),
+                            isDense: true,
+                            filled: true,
+                            fillColor: Theme.of(context).colorScheme.surface,
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               )
             : null,
@@ -1423,7 +1482,7 @@ class _CatalogPageState extends State<CatalogPage> {
                                           color: selected
                                               ? Theme.of(context)
                                                   .colorScheme
-                                                  .surfaceVariant
+                                                  .surfaceContainerHighest
                                               : Colors.transparent,
                                           borderRadius:
                                               BorderRadius.circular(8),
@@ -1565,7 +1624,7 @@ class _CatalogPageState extends State<CatalogPage> {
                       },
                     ),
                   ),
-                SliverToBoxAdapter(child: SizedBox(height: 26)),
+                const SliverToBoxAdapter(child: const SizedBox(height: 26)),
               ],
             );
           },
@@ -1575,14 +1634,11 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 
   void openCart() {
-    showModalBottomSheet<void>(
+    final screenSize = MediaQuery.sizeOf(context);
+    final isCompact = screenSize.width < 600;
+    showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, modalSetState) {
           void update(Product product, int delta) {
             changeQuantity(product, delta);
@@ -1592,300 +1648,293 @@ class _CatalogPageState extends State<CatalogPage> {
           final items = catalogProducts.value
               .where((p) => (cart[p.id] ?? 0) > 0)
               .toList();
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
-            child: Center(
+          return Dialog(
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22)),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 680),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: SizedBox(
-                    height: MediaQuery.sizeOf(context).height * .84,
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 18, 14, 14),
-                          child: Row(
+                constraints: BoxConstraints(
+                    maxWidth: 720, maxHeight: screenSize.height - 48),
+                child: SizedBox(
+                  width: (screenSize.width - 32).clamp(0.0, 720.0).toDouble(),
+                  height: screenSize.height * (isCompact ? .76 : .68),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 18, 14, 14),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('TU SELECCIÓN',
+                                      style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                          fontSize: 10,
+                                          letterSpacing: 1.6,
+                                          fontWeight: FontWeight.w800)),
+                                  const SizedBox(height: 4),
+                                  Text('Carrito ($cartCount)',
+                                      style: const TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800)),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.close_rounded)),
+                          ],
+                        ),
+                      ),
+                      Divider(
+                          height: 1,
+                          color: Theme.of(context).colorScheme.outlineVariant),
+                      Expanded(
+                        child: items.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(30),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.shopping_bag_outlined,
+                                          size: 42,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant),
+                                      const SizedBox(height: 12),
+                                      const Text('Tu carrito está vacío',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 16)),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                          'Explora el catálogo y añade lo que necesitas.',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                              fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: items.length,
+                                separatorBuilder: (_, __) => Divider(
+                                    height: 24,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .outlineVariant),
+                                itemBuilder: (context, i) {
+                                  final product = items[i];
+                                  final quantity = cart[product.id] ?? 0;
+                                  return Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: SizedBox(
+                                          width: 82,
+                                          height: 96,
+                                          child:
+                                              ProductImage(url: product.image),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(product.name,
+                                                style: const TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight:
+                                                        FontWeight.w800)),
+                                            const SizedBox(height: 4),
+                                            Text(money(priceFor(product)),
+                                                style: const TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w800)),
+                                            const SizedBox(height: 8),
+                                            _SelectionDropdown<String>(
+                                                label: 'COLOR',
+                                                value: cartColors[product.id] ??
+                                                    'Verde oliva',
+                                                items: const [
+                                                  'Verde oliva',
+                                                  'Negro',
+                                                  'Gris',
+                                                  'Arena'
+                                                ],
+                                                compact: true,
+                                                onChanged: (value) {
+                                                  setState(() =>
+                                                      cartColors[product.id] =
+                                                          value);
+                                                  modalSetState(() {});
+                                                }),
+                                            const SizedBox(height: 6),
+                                            _SelectionDropdown<String>(
+                                                label: 'TALLA',
+                                                value: cartSizes[product.id] ??
+                                                    (product.category ==
+                                                            'Calzado'
+                                                        ? 'M (40–41)'
+                                                        : product.category ==
+                                                                'Vestimenta'
+                                                            ? 'M'
+                                                            : 'Única'),
+                                                items: product.category ==
+                                                        'Calzado'
+                                                    ? const [
+                                                        'S (38–39)',
+                                                        'M (40–41)',
+                                                        'L (42–43)',
+                                                        'XL (44–45)'
+                                                      ]
+                                                    : product.category ==
+                                                            'Vestimenta'
+                                                        ? const [
+                                                            'XS',
+                                                            'S',
+                                                            'M',
+                                                            'L',
+                                                            'XL',
+                                                            'XXL'
+                                                          ]
+                                                        : const ['Única'],
+                                                compact: true,
+                                                onChanged: (value) {
+                                                  setState(() =>
+                                                      cartSizes[product.id] =
+                                                          value);
+                                                  modalSetState(() {});
+                                                }),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                QuantityButton(
+                                                    icon: Icons.remove,
+                                                    onTap: () =>
+                                                        update(product, -1)),
+                                                Padding(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 12),
+                                                  child: Text('$quantity',
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w800)),
+                                                ),
+                                                QuantityButton(
+                                                    icon: Icons.add,
+                                                    onTap: () =>
+                                                        update(product, 1)),
+                                                const Spacer(),
+                                                IconButton(
+                                                  visualDensity:
+                                                      VisualDensity.compact,
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      cart.remove(product.id);
+                                                      cartColors
+                                                          .remove(product.id);
+                                                      cartSizes
+                                                          .remove(product.id);
+                                                    });
+                                                    modalSetState(() {});
+                                                  },
+                                                  icon: Icon(
+                                                      Icons
+                                                          .delete_outline_rounded,
+                                                      size: 19,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                      ),
+                      if (items.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                          decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              border: Border(
+                                  top: BorderSide(
+                                      color: Theme.of(context).dividerColor))),
+                          child: Column(
                             children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('TU SELECCIÓN',
-                                        style: TextStyle(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                            fontSize: 10,
-                                            letterSpacing: 1.6,
-                                            fontWeight: FontWeight.w800)),
-                                    const SizedBox(height: 4),
-                                    Text('Carrito ($cartCount)',
-                                        style: const TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w800)),
-                                  ],
+                              Row(
+                                children: [
+                                  Text('Subtotal',
+                                      style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                          fontSize: 13)),
+                                  const Spacer(),
+                                  Text(money(cartTotal),
+                                      style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w900)),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                  'El envío y la confirmación se calculan al conectar el proceso de compra.',
+                                  style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                      fontSize: 10)),
+                              const SizedBox(height: 14),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10))),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    openCheckout();
+                                  },
+                                  icon: const Icon(Icons.arrow_forward_rounded,
+                                      size: 18),
+                                  label: const Text('CONTINUAR COMPRA',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 1.1)),
                                 ),
                               ),
-                              IconButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  icon: const Icon(Icons.close_rounded)),
                             ],
                           ),
                         ),
-                        Divider(
-                            height: 1,
-                            color:
-                                Theme.of(context).colorScheme.outlineVariant),
-                        Expanded(
-                          child: items.isEmpty
-                              ? Center(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(30),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.shopping_bag_outlined,
-                                            size: 42,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant),
-                                        SizedBox(height: 12),
-                                        Text('Tu carrito está vacío',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 16)),
-                                        SizedBox(height: 6),
-                                        Text(
-                                            'Explora el catálogo y añade lo que necesitas.',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
-                                                fontSize: 12)),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                              : ListView.separated(
-                                  padding: const EdgeInsets.all(16),
-                                  itemCount: items.length,
-                                  separatorBuilder: (_, __) => Divider(
-                                      height: 24,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outlineVariant),
-                                  itemBuilder: (context, i) {
-                                    final product = items[i];
-                                    final quantity = cart[product.id] ?? 0;
-                                    return Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          child: SizedBox(
-                                            width: 82,
-                                            height: 96,
-                                            child: ProductImage(
-                                                url: product.image),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(product.name,
-                                                  style: const TextStyle(
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w800)),
-                                              const SizedBox(height: 4),
-                                              Text(money(priceFor(product)),
-                                                  style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w800)),
-                                              const SizedBox(height: 8),
-                                              _SelectionDropdown<String>(
-                                                  label: 'COLOR',
-                                                  value:
-                                                      cartColors[product.id] ??
-                                                          'Verde oliva',
-                                                  items: const [
-                                                    'Verde oliva',
-                                                    'Negro',
-                                                    'Gris',
-                                                    'Arena'
-                                                  ],
-                                                  compact: true,
-                                                  onChanged: (value) {
-                                                    setState(() =>
-                                                        cartColors[product.id] =
-                                                            value);
-                                                    modalSetState(() {});
-                                                  }),
-                                              const SizedBox(height: 6),
-                                              _SelectionDropdown<String>(
-                                                  label: 'TALLA',
-                                                  value: cartSizes[
-                                                          product.id] ??
-                                                      (product.category ==
-                                                              'Calzado'
-                                                          ? 'M (40–41)'
-                                                          : product.category ==
-                                                                  'Vestimenta'
-                                                              ? 'M'
-                                                              : 'Única'),
-                                                  items: product.category ==
-                                                          'Calzado'
-                                                      ? const [
-                                                          'S (38–39)',
-                                                          'M (40–41)',
-                                                          'L (42–43)',
-                                                          'XL (44–45)'
-                                                        ]
-                                                      : product.category ==
-                                                              'Vestimenta'
-                                                          ? const [
-                                                              'XS',
-                                                              'S',
-                                                              'M',
-                                                              'L',
-                                                              'XL',
-                                                              'XXL'
-                                                            ]
-                                                          : const ['Única'],
-                                                  compact: true,
-                                                  onChanged: (value) {
-                                                    setState(() =>
-                                                        cartSizes[product.id] =
-                                                            value);
-                                                    modalSetState(() {});
-                                                  }),
-                                              const SizedBox(height: 8),
-                                              Row(
-                                                children: [
-                                                  QuantityButton(
-                                                      icon: Icons.remove,
-                                                      onTap: () =>
-                                                          update(product, -1)),
-                                                  Padding(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 12),
-                                                    child: Text('$quantity',
-                                                        style: const TextStyle(
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w800)),
-                                                  ),
-                                                  QuantityButton(
-                                                      icon: Icons.add,
-                                                      onTap: () =>
-                                                          update(product, 1)),
-                                                  const Spacer(),
-                                                  IconButton(
-                                                    visualDensity:
-                                                        VisualDensity.compact,
-                                                    onPressed: () {
-                                                      setState(() {
-                                                        cart.remove(product.id);
-                                                        cartColors
-                                                            .remove(product.id);
-                                                        cartSizes
-                                                            .remove(product.id);
-                                                      });
-                                                      modalSetState(() {});
-                                                    },
-                                                    icon: Icon(
-                                                        Icons
-                                                            .delete_outline_rounded,
-                                                        size: 19,
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .onSurfaceVariant),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                        ),
-                        if (items.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                            decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surface,
-                                border: Border(
-                                    top: BorderSide(
-                                        color:
-                                            Theme.of(context).dividerColor))),
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Text('Subtotal',
-                                        style: TextStyle(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                            fontSize: 13)),
-                                    const Spacer(),
-                                    Text(money(cartTotal),
-                                        style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w900)),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                    'El envío y la confirmación se calculan al conectar el proceso de compra.',
-                                    style: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                        fontSize: 10)),
-                                const SizedBox(height: 14),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 50,
-                                  child: FilledButton.icon(
-                                    style: FilledButton.styleFrom(
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10))),
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                      openCheckout();
-                                    },
-                                    icon: const Icon(
-                                        Icons.arrow_forward_rounded,
-                                        size: 18),
-                                    label: const Text('CONTINUAR COMPRA',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 1.1)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-          );
+              ));
         },
       ),
     ).whenComplete(() => setState(() {}));

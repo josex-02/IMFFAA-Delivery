@@ -96,15 +96,17 @@ class _AuthDialogState extends State<AuthDialog> {
     }
     try {
       await supabase.auth.resend(type: OtpType.signup, email: value);
-      if (mounted)
+      if (mounted) {
         showAppToast(context,
             'Solicitud enviada. Revisa tu bandeja y la carpeta de spam.');
+      }
     } on AuthException catch (e) {
       if (mounted) showAppToast(context, e.message, isError: true);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         showAppToast(context, 'No se pudo reenviar el correo de verificación.',
             isError: true);
+      }
     }
   }
 
@@ -162,9 +164,10 @@ class _AuthDialogState extends State<AuthDialog> {
     } on AuthException catch (e) {
       if (mounted) showAppToast(context, e.message, isError: true);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         showAppToast(context, 'No se pudo verificar el correo: $e',
             isError: true);
+      }
     }
   }
 
@@ -197,8 +200,9 @@ class _AuthDialogState extends State<AuthDialog> {
     } on AuthException catch (e) {
       if (mounted) showAppToast(context, e.message, isError: true);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         showAppToast(context, 'No se pudo iniciar sesión: $e', isError: true);
+      }
     }
   }
 
@@ -231,8 +235,9 @@ class _AuthDialogState extends State<AuthDialog> {
         },
       );
       final user = response.user;
-      if (user == null)
+      if (user == null) {
         throw const AuthException('No se pudo crear la cuenta.');
+      }
       if (response.session == null) {
         if (mounted) {
           setState(() => awaitingEmailCode = true);
@@ -266,13 +271,15 @@ class _AuthDialogState extends State<AuthDialog> {
         role: 'cliente',
       ));
     } on AuthException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('No se pudo crear la cuenta: $e')));
+      }
     }
   }
 
@@ -492,12 +499,14 @@ class _AuthDialogState extends State<AuthDialog> {
                   try {
                     await supabase.auth
                         .resend(type: OtpType.signup, email: email.text.trim());
-                    if (mounted)
+                    if (mounted) {
                       showAppToast(
                           context, 'Enviamos otro código de verificación.');
+                    }
                   } on AuthException catch (e) {
-                    if (mounted)
+                    if (mounted) {
                       showAppToast(context, e.message, isError: true);
+                    }
                   }
                 },
                 child: const Text('Reenviar código'))),

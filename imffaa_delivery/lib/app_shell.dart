@@ -81,8 +81,10 @@ class _IMFFAADeliveryAppState extends State<IMFFAADeliveryApp> {
       ),
       chipTheme: ChipThemeData(
           backgroundColor:
-              dark ? const Color(0xFF303A33) : grey.withOpacity(.25),
-          selectedColor: dark ? green.withOpacity(.42) : green.withOpacity(.16),
+              dark ? const Color(0xFF303A33) : grey.withValues(alpha: .25),
+          selectedColor: dark
+              ? green.withValues(alpha: .42)
+              : green.withValues(alpha: .16),
           labelStyle: TextStyle(color: foreground),
           secondaryLabelStyle: TextStyle(color: foreground),
           side: BorderSide(color: scheme.outlineVariant),
@@ -90,30 +92,29 @@ class _IMFFAADeliveryAppState extends State<IMFFAADeliveryApp> {
       dropdownMenuTheme: DropdownMenuThemeData(
           textStyle: TextStyle(color: foreground),
           menuStyle:
-              MenuStyle(backgroundColor: MaterialStatePropertyAll(surface))),
+              MenuStyle(backgroundColor: WidgetStatePropertyAll(surface))),
       filledButtonTheme: FilledButtonThemeData(
           style: ButtonStyle(
         animationDuration: const Duration(milliseconds: 300),
-        backgroundColor: MaterialStateProperty.resolveWith((states) =>
-            states.contains(MaterialState.disabled)
+        backgroundColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.disabled)
                 ? scheme.outlineVariant
                 : green),
-        foregroundColor: const MaterialStatePropertyAll(Colors.white),
-        overlayColor: MaterialStatePropertyAll(yellow.withOpacity(.22)),
-        shape: const MaterialStatePropertyAll(RoundedRectangleBorder(
+        foregroundColor: const WidgetStatePropertyAll(Colors.white),
+        overlayColor: WidgetStatePropertyAll(yellow.withValues(alpha: .22)),
+        shape: const WidgetStatePropertyAll(RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(radius)))),
       )),
       outlinedButtonTheme: OutlinedButtonThemeData(
           style: ButtonStyle(
-        foregroundColor: MaterialStatePropertyAll(foreground),
-        side:
-            MaterialStatePropertyAll(BorderSide(color: scheme.outlineVariant)),
-        shape: const MaterialStatePropertyAll(RoundedRectangleBorder(
+        foregroundColor: WidgetStatePropertyAll(foreground),
+        side: WidgetStatePropertyAll(BorderSide(color: scheme.outlineVariant)),
+        shape: const WidgetStatePropertyAll(RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(radius)))),
       )),
       dialogTheme: const DialogThemeData(
         alignment: Alignment.center,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(18))),
         surfaceTintColor: Colors.transparent,

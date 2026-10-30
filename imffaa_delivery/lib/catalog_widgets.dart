@@ -30,7 +30,7 @@ class _SelectionDropdown<T extends Object> extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant)),
         SizedBox(height: compact ? 3 : 6),
         DropdownButtonFormField<T>(
-          value: safeValue,
+          initialValue: safeValue,
           isExpanded: true,
           isDense: compact,
           decoration: InputDecoration(
@@ -162,12 +162,13 @@ class _ProductCardState extends State<ProductCard> {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
                 color: _hovered
-                    ? scheme.primary.withOpacity(.42)
-                    : scheme.outlineVariant.withOpacity(.72),
+                    ? scheme.primary.withValues(alpha: .42)
+                    : scheme.outlineVariant.withValues(alpha: .72),
                 width: _hovered ? 1.25 : 1),
             boxShadow: [
               BoxShadow(
-                  color: scheme.primary.withOpacity(_hovered ? .10 : .025),
+                  color:
+                      scheme.primary.withValues(alpha: _hovered ? .10 : .025),
                   blurRadius: _hovered ? 30 : 18,
                   offset: Offset(0, _hovered ? 12 : 5))
             ],
@@ -196,7 +197,7 @@ class _ProductCardState extends State<ProductCard> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 7, vertical: 5),
                               decoration: BoxDecoration(
-                                  color: scheme.surface.withOpacity(.96),
+                                  color: scheme.surface.withValues(alpha: .96),
                                   borderRadius: BorderRadius.circular(4)),
                               child: Text(product.tag.toUpperCase(),
                                   style: const TextStyle(
@@ -213,7 +214,7 @@ class _ProductCardState extends State<ProductCard> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 7, vertical: 5),
                             decoration: BoxDecoration(
-                                color: ink.withOpacity(.88),
+                                color: ink.withValues(alpha: .88),
                                 borderRadius: BorderRadius.circular(5)),
                             child: Text(product.gender.toUpperCase(),
                                 style: const TextStyle(
@@ -340,7 +341,7 @@ Future<void> showImageZoom(
     BuildContext context, String url, String title) async {
   await showDialog<void>(
     context: context,
-    barrierColor: Colors.black.withOpacity(.82),
+    barrierColor: Colors.black.withValues(alpha: .82),
     builder: (dialogContext) => Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(16),

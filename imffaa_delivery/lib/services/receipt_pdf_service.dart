@@ -18,19 +18,21 @@ Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
       pw.Container(
           width: double.infinity,
           padding: const pw.EdgeInsets.all(20),
-          decoration: pw.BoxDecoration(color: PdfColor.fromInt(0xFF25313D)),
+          decoration:
+              const pw.BoxDecoration(color: const PdfColor.fromInt(0xFF25313D)),
           child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text('IMFFAA Delivery',
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                         color: PdfColors.white,
                         fontSize: 26,
                         fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 5),
                 pw.Text('COMPROBANTE DE PEDIDO',
-                    style: pw.TextStyle(
-                        color: PdfColor.fromInt(0xFFD6DEE7), fontSize: 10)),
+                    style: const pw.TextStyle(
+                        color: const PdfColor.fromInt(0xFFD6DEE7),
+                        fontSize: 10)),
               ])),
       pw.SizedBox(height: 22),
       pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
@@ -39,7 +41,7 @@ Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
               pw.Text('Pedido #${order.id}',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                       fontSize: 15, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 5),
               pw.Text('Fecha: $date'),
@@ -50,7 +52,7 @@ Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
               pw.Text('DATOS DEL CLIENTE',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                       fontSize: 9, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 5),
               pw.Text(order.customer),
@@ -63,35 +65,38 @@ Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
       pw.Divider(color: PdfColors.grey400),
       pw.SizedBox(height: 6),
       pw.Text('ARTÍCULOS',
-          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+          style:
+              const pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(height: 10),
       ...order.lines.map((line) => pw.Container(
           padding: const pw.EdgeInsets.symmetric(vertical: 8),
           decoration: const pw.BoxDecoration(
               border:
                   pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300))),
-          child: pw
-              .Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-            pw.Expanded(
-                flex: 5,
-                child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(line.name,
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      pw.SizedBox(height: 3),
-                      pw.Text('Color: ${line.color} · Talla: ${line.size}',
-                          style: const pw.TextStyle(
-                              fontSize: 9, color: PdfColors.grey700))
-                    ])),
-            pw.Expanded(
-                child: pw.Text('x${line.quantity}',
-                    textAlign: pw.TextAlign.center)),
-            pw.Expanded(
-                flex: 2,
-                child:
-                    pw.Text('L ${line.total}', textAlign: pw.TextAlign.right)),
-          ]))),
+          child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                    flex: 5,
+                    child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(line.name,
+                              style: const pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold)),
+                          pw.SizedBox(height: 3),
+                          pw.Text('Color: ${line.color} · Talla: ${line.size}',
+                              style: const pw.TextStyle(
+                                  fontSize: 9, color: PdfColors.grey700))
+                        ])),
+                pw.Expanded(
+                    child: pw.Text('x${line.quantity}',
+                        textAlign: pw.TextAlign.center)),
+                pw.Expanded(
+                    flex: 2,
+                    child: pw.Text('L ${line.total}',
+                        textAlign: pw.TextAlign.right)),
+              ]))),
       pw.SizedBox(height: 18),
       pw.Align(
           alignment: pw.Alignment.centerRight,
@@ -105,10 +110,10 @@ Future<Uint8List> createReceiptPdf(DeliveryOrder order) async {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       pw.Text('TOTAL',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                               fontSize: 13, fontWeight: pw.FontWeight.bold)),
                       pw.Text('L ${order.total}',
-                          style: pw.TextStyle(
+                          style: const pw.TextStyle(
                               fontSize: 16, fontWeight: pw.FontWeight.bold))
                     ]),
               ]))),
