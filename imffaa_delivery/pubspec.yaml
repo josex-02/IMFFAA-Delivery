@@ -9,19 +9,19 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
   google_fonts: ^6.2.1
   image_picker: ^1.1.2
   pdf: ^3.11.3
   printing: ^5.14.2
   supabase_flutter: ^2.8.4
-  flutter_dotenv: ^5.2.1
-  toastification: ^2.3.0
+  flutter_dotenv: ^6.0.1
+  toastification: ^3.2.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true

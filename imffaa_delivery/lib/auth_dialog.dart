@@ -44,6 +44,9 @@ class _AuthDialogState extends State<AuthDialog> {
   final email = TextEditingController();
   final password = TextEditingController();
   final verificationCode = TextEditingController();
+  final recoveryCode = TextEditingController();
+  final newPassword = TextEditingController();
+  final confirmNewPassword = TextEditingController();
   final picker = ImagePicker();
   XFile? idImage;
   bool isLogin = true;
@@ -51,6 +54,8 @@ class _AuthDialogState extends State<AuthDialog> {
   bool obscureRegister = true;
   bool acceptedPrivacy = false;
   bool awaitingEmailCode = false;
+  bool recoveringPassword = false;
+  bool recoveryCodeVerified = false;
 
   @override
   void dispose() {
@@ -62,6 +67,9 @@ class _AuthDialogState extends State<AuthDialog> {
     email.dispose();
     password.dispose();
     verificationCode.dispose();
+    recoveryCode.dispose();
+    newPassword.dispose();
+    confirmNewPassword.dispose();
     super.dispose();
   }
 
@@ -85,29 +93,6 @@ class _AuthDialogState extends State<AuthDialog> {
       return 'Ingresa un correo válido';
     }
     return null;
-  }
-
-  Future<void> resendVerificationEmail({String? targetEmail}) async {
-    final value =
-        (targetEmail ?? (isLogin ? loginEmail.text : email.text)).trim();
-    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value)) {
-      showAppToast(context, 'Escribe primero un correo válido.', isError: true);
-      return;
-    }
-    try {
-      await supabase.auth.resend(type: OtpType.signup, email: value);
-      if (mounted) {
-        showAppToast(context,
-            'Solicitud enviada. Revisa tu bandeja y la carpeta de spam.');
-      }
-    } on AuthException catch (e) {
-      if (mounted) showAppToast(context, e.message, isError: true);
-    } catch (_) {
-      if (mounted) {
-        showAppToast(context, 'No se pudo reenviar el correo de verificación.',
-            isError: true);
-      }
-    }
   }
 
   Future<void> verifyEmailCode() async {
@@ -169,6 +154,119 @@ class _AuthDialogState extends State<AuthDialog> {
             isError: true);
       }
     }
+  }
+
+  Future<void> requestPasswordRecovery() async {
+    final value = loginEmail.text.trim();
+    final emailError = validEmail(value);
+    if (emailError != null) {
+      showAppToast(context, emailError, isError: true);
+      return;
+    }
+    try {
+      await supabase.auth.resetPasswordForEmail(value);
+      if (!mounted) return;
+      setState(() {
+        recoveringPassword = true;
+        recoveryCodeVerified = false;
+      });
+      showAppToast(context,
+          'Enviamos un código para restablecer tu contraseña. Revisa tu correo.');
+    } on AuthException catch (e) {
+      if (mounted) showAppToast(context, e.message, isError: true);
+    } catch (e) {
+      if (mounted) {
+        showAppToast(context, 'No se pudo enviar el código: $e', isError: true);
+      }
+    }
+  }
+
+  Future<void> verifyPasswordRecoveryCode() async {
+    final code = recoveryCode.text.trim();
+    if (!RegExp(r'^\d{6,8}$').hasMatch(code)) {
+      showAppToast(context, 'Escribe el código recibido por correo.',
+          isError: true);
+      return;
+    }
+    try {
+      final response = await supabase.auth.verifyOTP(
+        email: loginEmail.text.trim(),
+        token: code,
+        type: OtpType.recovery,
+      );
+      if (response.user == null || response.session == null) {
+        throw const AuthException(
+            'No se pudo verificar el código. Revisa el código e inténtalo de nuevo.');
+      }
+      if (mounted) setState(() => recoveryCodeVerified = true);
+    } on AuthException catch (e) {
+      if (mounted) showAppToast(context, e.message, isError: true);
+    } catch (e) {
+      if (mounted) {
+        showAppToast(context, 'No se pudo verificar el código: $e',
+            isError: true);
+      }
+    }
+  }
+
+  Future<void> submitNewPassword() async {
+    if (newPassword.text.length < 8) {
+      showAppToast(context, 'Usa al menos 8 caracteres para la contraseña.',
+          isError: true);
+      return;
+    }
+    if (newPassword.text != confirmNewPassword.text) {
+      showAppToast(context, 'Las contraseñas no coinciden.', isError: true);
+      return;
+    }
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) {
+        throw const AuthException(
+            'La sesión de recuperación expiró. Solicita un nuevo código.');
+      }
+      final profile = await supabase
+          .from('profiles')
+          .select('full_name, id_number, role')
+          .eq('id', user.id)
+          .maybeSingle();
+      final response = await supabase.auth
+          .updateUser(UserAttributes(password: newPassword.text));
+      final updatedUser = response.user ?? user;
+      if (!mounted) return;
+      showAppToast(context, 'Contraseña actualizada correctamente.');
+      Navigator.of(context).pop(AuthResult(
+        userId: updatedUser.id,
+        name: (profile?['full_name'] ??
+                updatedUser.userMetadata?['full_name'] ??
+                updatedUser.email?.split('@').first ??
+                'Cliente')
+            .toString(),
+        email: updatedUser.email ?? loginEmail.text.trim(),
+        idNumber: (profile?['id_number'] ??
+                updatedUser.userMetadata?['id_number'] ??
+                '')
+            .toString(),
+        role: (profile?['role'] ?? 'cliente').toString().toLowerCase(),
+      ));
+    } on AuthException catch (e) {
+      if (mounted) showAppToast(context, e.message, isError: true);
+    } catch (e) {
+      if (mounted) {
+        showAppToast(context, 'No se pudo actualizar la contraseña: $e',
+            isError: true);
+      }
+    }
+  }
+
+  void cancelPasswordRecovery() {
+    setState(() {
+      recoveringPassword = false;
+      recoveryCodeVerified = false;
+      recoveryCode.clear();
+      newPassword.clear();
+      confirmNewPassword.clear();
+    });
   }
 
   Future<void> submitLogin() async {
@@ -400,64 +498,133 @@ class _AuthDialogState extends State<AuthDialog> {
         ),
       );
 
-  Widget _loginForm() => Form(
-        key: loginKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 5),
-            const Text('Bienvenido de nuevo',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 5),
-            Text(
-                'El catálogo se puede consultar sin cuenta. Inicia sesión para intentar añadir artículos.',
-                style: TextStyle(
-                    fontSize: 12,
-                    height: 1.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 18),
-            TextFormField(
-                controller: loginEmail,
-                keyboardType: TextInputType.emailAddress,
-                validator: validEmail,
-                decoration: fieldDecoration('Correo electrónico',
-                    prefix: const Icon(Icons.mail_outline))),
+  Widget _loginForm() {
+    if (recoveringPassword) return _passwordRecoveryForm();
+    return Form(
+      key: loginKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 5),
+          const Text('Bienvenido de nuevo',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 5),
+          Text(
+              'El catálogo se puede consultar sin cuenta. Inicia sesión para intentar añadir artículos.',
+              style: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 18),
+          TextFormField(
+              controller: loginEmail,
+              keyboardType: TextInputType.emailAddress,
+              validator: validEmail,
+              decoration: fieldDecoration('Correo electrónico',
+                  prefix: const Icon(Icons.mail_outline))),
+          const SizedBox(height: 12),
+          TextFormField(
+              controller: loginPassword,
+              obscureText: obscureLogin,
+              validator: (v) => requiredValue(v, 'tu contraseña'),
+              decoration: fieldDecoration(
+                'Contraseña',
+                prefix: const Icon(Icons.lock_outline),
+                hint: 'Tu contraseña',
+              ).copyWith(
+                  suffixIcon: IconButton(
+                      onPressed: () =>
+                          setState(() => obscureLogin = !obscureLogin),
+                      icon: Icon(obscureLogin
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined)))),
+          const SizedBox(height: 16),
+          SizedBox(
+              height: 48,
+              child: FilledButton(
+                  onPressed: submitLogin,
+                  style: FilledButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10))),
+                  child: const Text('INICIAR SESIÓN'))),
+          Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                  onPressed: requestPasswordRecovery,
+                  icon: const Icon(Icons.lock_reset_rounded, size: 17),
+                  label: const Text('¿Olvidaste tu contraseña?'))),
+          const SizedBox(height: 8),
+          _demoNotice(),
+        ],
+      ),
+    );
+  }
+
+  Widget _passwordRecoveryForm() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 5),
+          Text(
+              recoveryCodeVerified
+                  ? 'Crear una nueva contraseña'
+                  : 'Restablecer contraseña',
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          Text(
+              recoveryCodeVerified
+                  ? 'Elige una contraseña nueva para tu cuenta.'
+                  : 'Enviamos un código a ${loginEmail.text.trim()}. Escríbelo para continuar.',
+              style: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 18),
+          if (!recoveryCodeVerified) ...[
+            TextField(
+                controller: recoveryCode,
+                keyboardType: TextInputType.number,
+                autofillHints: const [AutofillHints.oneTimeCode],
+                textAlign: TextAlign.center,
+                maxLength: 8,
+                decoration:
+                    fieldDecoration('Código de recuperación', hint: '000000')),
+            const SizedBox(height: 8),
+            SizedBox(
+                height: 48,
+                child: FilledButton(
+                    onPressed: verifyPasswordRecoveryCode,
+                    child: const Text('VERIFICAR CÓDIGO'))),
+            Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                    onPressed: requestPasswordRecovery,
+                    child: const Text('Reenviar código'))),
+          ] else ...[
+            TextField(
+                controller: newPassword,
+                obscureText: true,
+                autofillHints: const [AutofillHints.newPassword],
+                decoration: fieldDecoration('Nueva contraseña',
+                    prefix: const Icon(Icons.lock_outline))),
             const SizedBox(height: 12),
-            TextFormField(
-                controller: loginPassword,
-                obscureText: obscureLogin,
-                validator: (v) => requiredValue(v, 'tu contraseña'),
-                decoration: fieldDecoration(
-                  'Contraseña',
-                  prefix: const Icon(Icons.lock_outline),
-                  hint: 'Tu contraseña',
-                ).copyWith(
-                    suffixIcon: IconButton(
-                        onPressed: () =>
-                            setState(() => obscureLogin = !obscureLogin),
-                        icon: Icon(obscureLogin
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined)))),
+            TextField(
+                controller: confirmNewPassword,
+                obscureText: true,
+                autofillHints: const [AutofillHints.newPassword],
+                decoration: fieldDecoration('Confirmar contraseña',
+                    prefix: const Icon(Icons.lock_outline))),
             const SizedBox(height: 16),
             SizedBox(
                 height: 48,
                 child: FilledButton(
-                    onPressed: submitLogin,
-                    style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10))),
-                    child: const Text('INICIAR SESIÓN'))),
-            Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                    onPressed: resendVerificationEmail,
-                    icon:
-                        const Icon(Icons.mark_email_unread_outlined, size: 17),
-                    label: const Text('Reenviar verificación de correo'))),
-            const SizedBox(height: 8),
-            _demoNotice(),
+                    onPressed: submitNewPassword,
+                    child: const Text('ACTUALIZAR CONTRASEÑA'))),
           ],
-        ),
+          TextButton(
+              onPressed: cancelPasswordRecovery,
+              child: const Text('Volver a iniciar sesión')),
+        ],
       );
 
   Widget _registerForm() {
@@ -631,13 +798,6 @@ class _AuthDialogState extends State<AuthDialog> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10))),
                   child: const Text('CREAR CUENTA'))),
-          Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                  onPressed: () =>
-                      resendVerificationEmail(targetEmail: email.text),
-                  icon: const Icon(Icons.mark_email_unread_outlined, size: 17),
-                  label: const Text('Reenviar código de verificación'))),
           const SizedBox(height: 8),
           _demoNotice(),
         ],
